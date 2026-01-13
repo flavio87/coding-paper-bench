@@ -1,0 +1,45 @@
+2026-01-13 22:18:59 - shinka.core.runner - INFO - ================================================================================
+2026-01-13 22:18:59 - shinka.core.runner - INFO - Evolution run started at 2026-01-13 22:18:59
+2026-01-13 22:18:59 - shinka.core.runner - INFO - Results directory: results_tsp
+2026-01-13 22:18:59 - shinka.core.runner - INFO - Log file: results_tsp/evolution_run.log
+2026-01-13 22:18:59 - shinka.core.runner - INFO - ================================================================================
+2026-01-13 22:18:59 - shinka.core.runner - INFO - Experiment configuration saved to results_tsp/experiment_config.yaml
+2026-01-13 22:18:59 - shinka.core.runner - INFO - Starting evolution with 1 parallel jobs, target: 5 generations
+2026-01-13 22:18:59 - shinka.core.runner - INFO - Running generation 0 sequentially to initialize database...
+2026-01-13 22:18:59 - shinka.core.runner - INFO - Copying initial program from initial.py
+2026-01-13 22:18:59 - shinka.launch.local - INFO - Submitted local process with PID: 13894
+2026-01-13 22:18:59 - shinka.launch.local - INFO - Launched local command: python evaluate.py --program_path results_tsp/gen_0/main.py --results_dir results_tsp/gen_0/results
+2026-01-13 22:19:09 - shinka.database.dbase - INFO - Program 5550a05b-9596-403e-aea9-1b1229f5283e added to DB - score: 0.18080472862682484.
+2026-01-13 22:19:09 - shinka.database.dbase - INFO - New best program: 5550a05b-9596-403e-aea9-1b1229f5283e (gen: 0, score: 0.1808, initialized island: 0).
+2026-01-13 22:19:09 - shinka.database.dbase - INFO - Not enough programs with embeddings (0) to perform clustering. Need at least 4.
+2026-01-13 22:19:09 - shinka.database.dbase - INFO - Creating copies of initial program 5550a05b-9596-403e-aea9-1b1229f5283e for all islands
+2026-01-13 22:19:09 - shinka.database.dbase - INFO - Database state committed. Last iteration: 0. Best: 5550a05b-9596-403e-aea9-1b1229f5283e
+2026-01-13 22:19:09 - shinka.core.runner - INFO - New best program found: gen 0, id 5550a0... Copied to results_tsp/best
+2026-01-13 22:19:09 - shinka.core.summarizer - INFO - Added program 5550a05b-9596-403e-aea9-1b1229f5283e to meta memory tracking (correct=True, total: 1)
+2026-01-13 22:19:09 - shinka.core.summarizer - INFO - Saved meta state to results_tsp/meta_memory.json: 1 unprocessed programs, summary: No, scratchpad: No, recommendations: No, history: 0 items
+2026-01-13 22:19:09 - shinka.core.runner - INFO - Completed generation 0, total: 1/5
+2026-01-13 22:19:09 - shinka.core.runner - INFO - Starting parallel execution for remaining generations...
+2026-01-13 22:19:09 - shinka.database.parents - INFO - Island 0 => Probabilities: [1.0]
+2026-01-13 22:19:09 - shinka.database.parents - INFO - Island 0 => Scores: [0.18080472862682484]
+2026-01-13 22:19:09 - shinka.database.parents - INFO - Sampled parent 5550a05b-9596-403e-aea9-1b1229f5283e (Gen: 0, Score: 0.1808, Children: 0, Island: 0)
+2026-01-13 22:19:09 - shinka.core.runner - INFO - Edit Cycle 1 -> 2, Max Patch Attempts: 3
+2026-01-13 22:19:09 - shinka.llm.llm - INFO - ==> SAMPLING:
+  openrouter/anthropic/claude-sonnet-4   1.0000
+2026-01-13 22:19:09 - shinka.llm.llm - INFO - ==> QUERYING: ['openrouter/anthropic/claude-sonnet-4', 0.3, 8192]
+2026-01-13 22:19:10 - shinka.llm.llm - ERROR - 1/3 Error in query: 'OpenAI' object has no attribute 'messages'
+2026-01-13 22:19:10 - shinka.llm.llm - ERROR - 2/3 Error in query: 'OpenAI' object has no attribute 'messages'
+2026-01-13 22:19:10 - shinka.llm.llm - ERROR - 3/3 Error in query: 'OpenAI' object has no attribute 'messages'
+2026-01-13 22:19:10 - shinka.core.runner - INFO -   PATCH ATTEMPT 1/3 FAILURE. Error: LLM response content was None.
+2026-01-13 22:19:10 - shinka.llm.llm - INFO - ==> QUERYING: ['openrouter/anthropic/claude-sonnet-4', 0.3, 8192]
+2026-01-13 22:19:10 - shinka.llm.llm - ERROR - 1/3 Error in query: 'OpenAI' object has no attribute 'messages'
+2026-01-13 22:19:10 - shinka.llm.llm - ERROR - 2/3 Error in query: 'OpenAI' object has no attribute 'messages'
+2026-01-13 22:19:10 - shinka.llm.llm - ERROR - 3/3 Error in query: 'OpenAI' object has no attribute 'messages'
+2026-01-13 22:19:10 - shinka.core.runner - INFO -   PATCH ATTEMPT 2/3 FAILURE. Error: LLM response content was None.
+2026-01-13 22:19:10 - shinka.llm.llm - INFO - ==> QUERYING: ['openrouter/anthropic/claude-sonnet-4', 0.3, 8192]
+2026-01-13 22:19:10 - shinka.llm.llm - ERROR - 1/3 Error in query: 'OpenAI' object has no attribute 'messages'
+2026-01-13 22:19:10 - shinka.llm.llm - ERROR - 2/3 Error in query: 'OpenAI' object has no attribute 'messages'
+2026-01-13 22:19:10 - shinka.llm.llm - ERROR - 3/3 Error in query: 'OpenAI' object has no attribute 'messages'
+2026-01-13 22:19:10 - shinka.core.runner - INFO -   PATCH ATTEMPT 3/3 FAILURE. Error: LLM response content was None.
+2026-01-13 22:19:10 - shinka.database.parents - INFO - Island 0 => Probabilities: [1.0]
+2026-01-13 22:19:10 - shinka.database.parents - INFO - Island 0 => Scores: [0.18080472862682484]
+2026-01-13 22:19:10 - shinka.database.parents - INFO - Sampled parent 5550a05b-9596-403e-aea9-1b1229f5283e (Gen: 0, Score: 0.1808, Children: 0, Island: 0)
