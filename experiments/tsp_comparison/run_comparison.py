@@ -5,6 +5,8 @@ TSP Improvement Comparison: Paper-Based vs ShinkaEvolve
 This script compares two approaches for improving a TSP solver:
 1. Paper-Based: Single LLM call with research paper ideas
 2. ShinkaEvolve: Iterative LLM-based evolutionary search
+
+Supports: OpenRouter, Anthropic, OpenAI APIs
 """
 
 import os
@@ -14,8 +16,19 @@ import time
 import argparse
 import tempfile
 import subprocess
+from pathlib import Path
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, asdict
+
+# Load .env file if it exists
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"Loaded API key from {env_path}")
+except ImportError:
+    pass  # dotenv not installed, rely on environment variables
 
 # Try to import LLM clients
 try:
@@ -42,6 +55,90 @@ class ExperimentResult:
     code_generated: str
     valid: bool
     error: Optional[str] = None
+
+
+# ============================================================================
+# LLM CLIENT SETUP
+# ============================================================================
+
+def get_llm_client() -> tuple:
+    """
+    Get LLM client based on available API keys.
+    Priority: OpenRouter > Anthropic > OpenAI
+
+    Returns:
+        (client, client_type, default_model)
+    """
+    # Check OpenRouter first (most flexible)
+    if os.environ.get('OPENROUTER_API_KEY'):
+        if not HAS_OPENAI:
+            print("ERROR: openai package required for OpenRouter")
+            return None, None, None
+        client = openai.OpenAI(
+            api_key=os.environ['OPENROUTER_API_KEY'],
+            base_url="https://openrouter.ai/api/v1"
+        )
+        return client, "openrouter", "anthropic/claude-sonnet-4"
+
+    # Check Anthropic
+    if os.environ.get('ANTHROPIC_API_KEY'):
+        if not HAS_ANTHROPIC:
+            print("ERROR: anthropic package required")
+            return None, None, None
+        client = anthropic.Anthropic()
+        return client, "anthropic", "claude-sonnet-4-20250514"
+
+    # Check OpenAI
+    if os.environ.get('OPENAI_API_KEY'):
+        if not HAS_OPENAI:
+            print("ERROR: openai package required")
+            return None, None, None
+        client = openai.OpenAI()
+        return client, "openai", "gpt-4o"
+
+    return None, None, None
+
+
+def call_llm(client, client_type: str, model: str, prompt: str, max_tokens: int = 4096) -> tuple:
+    """
+    Unified LLM call interface.
+
+    Returns:
+        (response_text, tokens_used, error)
+    """
+    try:
+        if client_type == "anthropic":
+            response = client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response.content[0].text, response.usage.input_tokens + response.usage.output_tokens, None
+
+        elif client_type in ("openrouter", "openai"):
+            # OpenRouter and OpenAI use the same interface
+            extra_headers = {}
+            if client_type == "openrouter":
+                extra_headers = {
+                    "HTTP-Referer": "https://github.com/paperbench",
+                    "X-Title": "PaperBench TSP Comparison"
+                }
+
+            response = client.chat.completions.create(
+                model=model,
+                max_tokens=max_tokens,
+                messages=[{"role": "user", "content": prompt}],
+                extra_headers=extra_headers if extra_headers else None
+            )
+            content = response.choices[0].message.content
+            tokens = response.usage.total_tokens if response.usage else 0
+            return content, tokens, None
+
+        else:
+            return None, 0, f"Unknown client type: {client_type}"
+
+    except Exception as e:
+        return None, 0, str(e)
 
 
 # ============================================================================
@@ -97,11 +194,7 @@ Focus on the most impactful improvement that can be implemented correctly.
 """
 
 
-def paper_based_improvement(
-    baseline_code: str,
-    client: Any,
-    model: str = "claude-sonnet-4-20250514"
-) -> tuple:
+def paper_based_improvement(baseline_code: str, client, client_type: str, model: str) -> tuple:
     """
     Generate improved solver using paper-based approach.
 
@@ -113,37 +206,16 @@ def paper_based_improvement(
         baseline_code=baseline_code
     )
 
-    try:
-        if HAS_ANTHROPIC and isinstance(client, anthropic.Anthropic):
-            response = client.messages.create(
-                model=model,
-                max_tokens=4096,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            content = response.content[0].text
-            tokens = response.usage.input_tokens + response.usage.output_tokens
+    content, tokens, error = call_llm(client, client_type, model, prompt)
 
-        elif HAS_OPENAI and hasattr(client, 'chat'):
-            response = client.chat.completions.create(
-                model=model,
-                max_tokens=4096,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            content = response.choices[0].message.content
-            tokens = response.usage.total_tokens
+    if error:
+        return None, tokens, error
 
-        else:
-            return None, 0, "No valid LLM client"
-
-        # Extract code
-        code = extract_python_code(content)
-        if code:
-            return code, tokens, None
-        else:
-            return None, tokens, "Could not extract Python code from response"
-
-    except Exception as e:
-        return None, 0, str(e)
+    code = extract_python_code(content)
+    if code:
+        return code, tokens, None
+    else:
+        return None, tokens, "Could not extract Python code from response"
 
 
 def extract_python_code(response: str) -> Optional[str]:
@@ -180,16 +252,17 @@ Make ONE targeted change that might improve the score.
 
 def shinka_evolution(
     baseline_code: str,
-    client: Any,
+    client,
+    client_type: str,
+    model: str,
     evaluate_fn,
-    budget: int = 10,
-    model: str = "claude-sonnet-4-20250514"
+    budget: int = 10
 ) -> tuple:
     """
     Simplified ShinkaEvolve: iterative LLM mutations.
 
     Returns:
-        (best_code, total_tokens, generations, error)
+        (best_code, total_tokens, history, error)
     """
     best_code = baseline_code
     best_score = evaluate_fn(baseline_code)
@@ -204,46 +277,29 @@ def shinka_evolution(
             score=best_score
         )
 
-        try:
-            if HAS_ANTHROPIC and isinstance(client, anthropic.Anthropic):
-                response = client.messages.create(
-                    model=model,
-                    max_tokens=4096,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                content = response.content[0].text
-                tokens = response.usage.input_tokens + response.usage.output_tokens
+        content, tokens, error = call_llm(client, client_type, model, prompt)
+        total_tokens += tokens
 
-            elif HAS_OPENAI and hasattr(client, 'chat'):
-                response = client.chat.completions.create(
-                    model=model,
-                    max_tokens=4096,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                content = response.choices[0].message.content
-                tokens = response.usage.total_tokens
+        if error:
+            print(f"  Gen {gen}: LLM error - {error}")
+            history.append((gen, 0, f"error: {error}"))
+            continue
+
+        new_code = extract_python_code(content)
+        if new_code:
+            new_score = evaluate_fn(new_code)
+
+            if new_score > best_score:
+                print(f"  Gen {gen}: {best_score:.4f} -> {new_score:.4f} (+{new_score - best_score:.4f})")
+                best_code = new_code
+                best_score = new_score
+                history.append((gen, new_score, "improved"))
             else:
-                return best_code, total_tokens, history, "No valid LLM client"
-
-            total_tokens += tokens
-
-            # Extract and evaluate
-            new_code = extract_python_code(content)
-            if new_code:
-                new_score = evaluate_fn(new_code)
-
-                if new_score > best_score:
-                    print(f"  Gen {gen}: {best_score:.4f} -> {new_score:.4f} (+{new_score - best_score:.4f})")
-                    best_code = new_code
-                    best_score = new_score
-                    history.append((gen, new_score, "improved"))
-                else:
-                    history.append((gen, new_score, "rejected"))
-            else:
-                history.append((gen, 0, "parse_error"))
-
-        except Exception as e:
-            history.append((gen, 0, f"error: {e}"))
+                print(f"  Gen {gen}: {new_score:.4f} (no improvement)")
+                history.append((gen, new_score, "rejected"))
+        else:
+            print(f"  Gen {gen}: parse error")
+            history.append((gen, 0, "parse_error"))
 
     return best_code, total_tokens, history, None
 
@@ -257,8 +313,6 @@ def quick_evaluate(code: str) -> float:
     Quick evaluation of solver code.
     Returns score (higher is better).
     """
-    import numpy as np
-
     # Create temp file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
         # Add run_solver wrapper if not present
@@ -309,8 +363,7 @@ def run_solver(instance):
 
 def run_comparison(
     budget: int = 10,
-    model: str = "claude-sonnet-4-20250514",
-    seeds: int = 3
+    model: str = None,
 ) -> Dict[str, Any]:
     """
     Run the full comparison experiment.
@@ -328,22 +381,24 @@ def run_comparison(
     evolve_code = baseline_code[start_idx:end_idx]
 
     # Initialize LLM client
-    client = None
-    if HAS_ANTHROPIC and os.environ.get('ANTHROPIC_API_KEY'):
-        client = anthropic.Anthropic()
-        print("Using Anthropic API")
-    elif HAS_OPENAI and os.environ.get('OPENAI_API_KEY'):
-        client = openai.OpenAI()
-        print("Using OpenAI API")
-    else:
+    client, client_type, default_model = get_llm_client()
+
+    if client is None:
         print("ERROR: No LLM API key found!")
-        print("Set ANTHROPIC_API_KEY or OPENAI_API_KEY environment variable")
+        print("Set one of: OPENROUTER_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY")
+        print("\nCreate a .env file with:")
+        print("  OPENROUTER_API_KEY=your-key-here")
         return None
+
+    # Use provided model or default
+    model = model or default_model
+    print(f"Using {client_type} API with model: {model}")
 
     results = {
         'baseline_score': quick_evaluate(baseline_code),
         'budget': budget,
         'model': model,
+        'client_type': client_type,
         'approaches': {}
     }
 
@@ -358,7 +413,7 @@ def run_comparison(
 
     start_time = time.time()
     improved_code, tokens, error = paper_based_improvement(
-        evolve_code, client, model
+        evolve_code, client, client_type, model
     )
     paper_time = time.time() - start_time
 
@@ -373,7 +428,7 @@ def run_comparison(
             time_seconds=paper_time,
             score=paper_score,
             improvement_pct=paper_improvement,
-            code_generated=improved_code[:500] + "...",  # Truncate for storage
+            code_generated=improved_code[:500] + "...",
             valid=True
         ))
         print(f"Score: {paper_score:.4f} (improvement: {paper_improvement:+.1f}%)")
@@ -400,7 +455,7 @@ def run_comparison(
 
     start_time = time.time()
     evolved_code, tokens, history, error = shinka_evolution(
-        evolve_code, client, quick_evaluate, budget=budget, model=model
+        evolve_code, client, client_type, model, quick_evaluate, budget=budget
     )
     shinka_time = time.time() - start_time
 
@@ -457,8 +512,8 @@ def main():
     parser = argparse.ArgumentParser(description="TSP Improvement Comparison")
     parser.add_argument('--budget', type=int, default=10,
                         help='Number of LLM calls for ShinkaEvolve')
-    parser.add_argument('--model', type=str, default='claude-sonnet-4-20250514',
-                        help='LLM model to use')
+    parser.add_argument('--model', type=str, default=None,
+                        help='LLM model to use (default: auto-select based on API)')
     parser.add_argument('--output', type=str, default='comparison_results.json',
                         help='Output file for results')
     args = parser.parse_args()
