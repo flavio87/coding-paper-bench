@@ -1,0 +1,343 @@
+# EVOLVE-BLOCK-START
+"""
+TSP Solver: LKH-style with don't-look bits, neighbor lists, and aggressive ILS
+"""
+
+import numpy as np
+import time
+import random
+
+
+def solve_tsp(coords: np.ndarray, time_limit_ms: int = 5000) -> tuple:
+    n = len(coords)
+
+    if n <= 1:
+        return list(range(n)), 0.0
+
+    if n == 2:
+        return [0, 1], round(np.sqrt(np.sum((coords[0] - coords[1]) ** 2)))
+
+    # Vectorized distance matrix computation
+    diff = coords[:, np.newaxis, :] - coords[np.newaxis, :, :]
+    dist = np.round(np.sqrt(np.sum(diff ** 2, axis=2)))
+
+    start_time = time.perf_counter()
+    deadline = start_time + time_limit_ms / 1000.0
+
+    # Build neighbor lists (k nearest neighbors for each city)
+    k_neighbors = min(25, n - 1)
+    neighbors = np.zeros((n, k_neighbors), dtype=np.int32)
+    for i in range(n):
+        sorted_idx = np.argsort(dist[i])
+        neighbors[i] = sorted_idx[1:k_neighbors+1]
+
+    def calc_tour_length(tour):
+        total = 0
+        for i in range(n):
+            total += dist[tour[i], tour[(i + 1) % n]]
+        return total
+
+    def nearest_neighbor_fast(start_city):
+        tour = [start_city]
+        visited = [False] * n
+        visited[start_city] = True
+        current = start_city
+
+        for _ in range(n - 1):
+            best_dist = np.inf
+            best_next = -1
+            # First check neighbors
+            for j in neighbors[current]:
+                if not visited[j]:
+                    best_dist = dist[current, j]
+                    best_next = j
+                    break
+            # Fallback to full search if needed
+            if best_next == -1:
+                for j in range(n):
+                    if not visited[j] and dist[current, j] < best_dist:
+                        best_dist = dist[current, j]
+                        best_next = j
+            tour.append(best_next)
+            visited[best_next] = True
+            current = best_next
+
+        return tour
+
+    def two_opt_dlb(tour, deadline):
+        """2-opt with don't-look bits for efficiency."""
+        tour = list(tour)
+        pos = [0] * n
+        for i in range(n):
+            pos[tour[i]] = i
+        
+        # Don't-look bits: if True, skip this node
+        dlb = [False] * n
+        
+        improved = True
+        while improved and time.perf_counter() < deadline:
+            improved = False
+            for idx in range(n):
+                i = pos[tour[idx]] if idx < n else idx
+                i = idx
+                
+                city_i = tour[i]
+                if dlb[city_i]:
+                    continue
+                    
+                city_i1 = tour[(i + 1) % n]
+                found = False
+
+                # Check neighbors of city_i
+                for city_c in neighbors[city_i]:
+                    j = pos[city_c]
+                    
+                    if j <= i + 1 or (i == 0 and j == n - 1):
+                        continue
+
+                    city_d = tour[(j + 1) % n]
+                    delta = (dist[city_i, city_c] + dist[city_i1, city_d]) - \
+                            (dist[city_i, city_i1] + dist[city_c, city_d])
+
+                    if delta < -0.5:
+                        # Reverse segment
+                        left, right = i + 1, j
+                        while left < right:
+                            tour[left], tour[right] = tour[right], tour[left]
+                            pos[tour[left]] = left
+                            pos[tour[right]] = right
+                            left += 1
+                            right -= 1
+                        if left == right:
+                            pos[tour[left]] = left
+                        
+                        # Reset don't-look bits for affected nodes
+                        dlb[city_i] = False
+                        dlb[city_i1] = False
+                        dlb[city_c] = False
+                        dlb[city_d] = False
+                        
+                        improved = True
+                        found = True
+                        break
+                
+                if not found:
+                    # Check neighbors of city_i1
+                    for city_c in neighbors[city_i1]:
+                        j = pos[city_c]
+                        if j <= i + 1 or (i == 0 and j == n - 1):
+                            continue
+                        city_d = tour[(j + 1) % n]
+                        delta = (dist[city_i, city_c] + dist[city_i1, city_d]) - \
+                                (dist[city_i, city_i1] + dist[city_c, city_d])
+                        if delta < -0.5:
+                            left, right = i + 1, j
+                            while left < right:
+                                tour[left], tour[right] = tour[right], tour[left]
+                                pos[tour[left]] = left
+                                pos[tour[right]] = right
+                                left += 1
+                                right -= 1
+                            if left == right:
+                                pos[tour[left]] = left
+                            dlb[city_i] = False
+                            dlb[city_i1] = False
+                            dlb[city_c] = False
+                            dlb[city_d] = False
+                            improved = True
+                            found = True
+                            break
+                
+                if not found:
+                    dlb[city_i] = True
+                
+                if improved:
+                    break
+
+        return tour
+
+    def or_opt_neighbor(tour, deadline):
+        """Or-opt using neighbor lists for candidate positions."""
+        tour = list(tour)
+        pos = [0] * n
+        for idx in range(n):
+            pos[tour[idx]] = idx
+
+        improved = True
+        while improved and time.perf_counter() < deadline:
+            improved = False
+
+            for seg_len in [1, 2, 3]:
+                if improved or time.perf_counter() >= deadline:
+                    break
+
+                for i in range(n):
+                    if time.perf_counter() >= deadline:
+                        break
+
+                    next_seg = (i + seg_len) % n
+                    prev_i = (i - 1 + n) % n
+                    
+                    # Skip wrap-around segments for simplicity
+                    if i + seg_len > n:
+                        continue
+
+                    seg_start = tour[i]
+                    seg_end = tour[i + seg_len - 1]
+                    prev_city = tour[prev_i]
+                    next_city = tour[next_seg]
+
+                    current_cost = dist[prev_city, seg_start] + dist[seg_end, next_city]
+                    reconnect_cost = dist[prev_city, next_city]
+
+                    best_delta = 0
+                    best_j = -1
+
+                    # Use neighbor lists for candidates
+                    candidates = set()
+                    for nc in neighbors[seg_start][:15]:
+                        p = pos[nc]
+                        if p > 0:
+                            candidates.add(p - 1)
+                        candidates.add(p)
+                    for nc in neighbors[seg_end][:15]:
+                        p = pos[nc]
+                        if p > 0:
+                            candidates.add(p - 1)
+                        candidates.add(p)
+
+                    for j in candidates:
+                        if j < 0 or j >= n - 1:
+                            continue
+                        if j >= i - 1 and j < i + seg_len:
+                            continue
+
+                        city_j = tour[j]
+                        city_j1 = tour[j + 1]
+
+                        insert_cost = dist[city_j, seg_start] + dist[seg_end, city_j1]
+                        edge_cost = dist[city_j, city_j1]
+
+                        delta = reconnect_cost + insert_cost - current_cost - edge_cost
+
+                        if delta < best_delta - 0.5:
+                            best_delta = delta
+                            best_j = j
+
+                    if best_j != -1:
+                        segment = tour[i:i+seg_len]
+                        new_tour = tour[:i] + tour[i+seg_len:]
+                        if best_j < i:
+                            insert_pos = best_j + 1
+                        else:
+                            insert_pos = best_j + 1 - seg_len
+                        tour = new_tour[:insert_pos] + segment + new_tour[insert_pos:]
+                        for idx in range(n):
+                            pos[tour[idx]] = idx
+                        improved = True
+                        break
+
+        return tour
+
+    def perturb_tour(tour, strength=1):
+        tour = list(tour)
+        if n < 8:
+            i, j = random.sample(range(n), 2)
+            tour[i], tour[j] = tour[j], tour[i]
+            return tour
+
+        for _ in range(strength):
+            positions = sorted(random.sample(range(n), 4))
+            p1, p2, p3, p4 = positions
+            tour = (tour[:p1+1] + tour[p3+1:p4+1] +
+                   tour[p2+1:p3+1] + tour[p1+1:p2+1] + tour[p4+1:])
+
+        return tour
+
+    # Phase 1: Multi-start construction (4% of time)
+    construction_deadline = start_time + (time_limit_ms / 1000.0) * 0.04
+
+    best_tour = None
+    best_length = np.inf
+
+    num_starts = min(n, 20)
+    start_cities = [int(i * n / num_starts) for i in range(num_starts)] if n > 20 else list(range(n))
+
+    for start in start_cities:
+        if time.perf_counter() >= construction_deadline:
+            break
+        tour = nearest_neighbor_fast(start)
+        length = calc_tour_length(tour)
+        if length < best_length:
+            best_length = length
+            best_tour = tour[:]
+
+    if best_tour is None:
+        best_tour = nearest_neighbor_fast(0)
+
+    # Phase 2: Intensive local search (55% of remaining time)
+    tour = best_tour[:]
+    remaining = deadline - time.perf_counter()
+    
+    mini_deadline = time.perf_counter() + remaining * 0.35
+    tour = two_opt_dlb(tour, mini_deadline)
+
+    if time.perf_counter() < deadline:
+        mini_deadline = time.perf_counter() + (deadline - time.perf_counter()) * 0.30
+        tour = or_opt_neighbor(tour, mini_deadline)
+
+    best_overall_tour = tour[:]
+    best_overall_length = calc_tour_length(tour)
+
+    # Phase 3: Iterated Local Search with faster iterations
+    no_improve_count = 0
+    perturbation_strength = 1
+    
+    while time.perf_counter() < deadline - 0.008:
+        perturbed = perturb_tour(best_overall_tour, perturbation_strength)
+
+        remaining = deadline - time.perf_counter()
+        mini_deadline = time.perf_counter() + min(remaining * 0.35, 0.05)
+        perturbed = two_opt_dlb(perturbed, mini_deadline)
+
+        if time.perf_counter() < deadline - 0.006:
+            mini_deadline = time.perf_counter() + min(remaining * 0.15, 0.025)
+            perturbed = or_opt_neighbor(perturbed, mini_deadline)
+
+        perturbed_length = calc_tour_length(perturbed)
+
+        if perturbed_length < best_overall_length:
+            best_overall_length = perturbed_length
+            best_overall_tour = perturbed[:]
+            no_improve_count = 0
+            perturbation_strength = 1
+        else:
+            no_improve_count += 1
+
+        if no_improve_count > 5:
+            perturbation_strength = min(perturbation_strength + 1, 4)
+            no_improve_count = 0
+
+    return best_overall_tour, best_overall_length
+
+
+# EVOLVE-BLOCK-END
+
+
+def run_experiment(coords: np.ndarray, time_limit_ms: int = 5000, optimal_length: float = None) -> dict:
+    tour, length = solve_tsp(coords, time_limit_ms)
+
+    n = len(coords)
+    valid = (len(tour) == n and set(tour) == set(range(n)))
+
+    if optimal_length and optimal_length > 0:
+        score = optimal_length / length if length > 0 else 0.0
+    else:
+        score = 1000.0 / length if length > 0 else 0.0
+
+    return {
+        'tour': tour,
+        'length': length,
+        'valid': valid,
+        'score': score
+    }

@@ -1,0 +1,275 @@
+Looking at the performance metrics, I notice that the current implementation achieves a combined score of 0.19. The individual scores decrease significantly for larger instances, suggesting the algorithm struggles with scalability.
+
+Let me analyze the key areas for improvement:
+
+1. **2-opt efficiency**: The current 2-opt checks all O(n²) pairs. Using a neighbor list to prioritize checking nearby cities can speed this up significantly.
+2. **Better construction**: Adding a greedy edge construction can sometimes produce better initial tours than nearest neighbor.
+3. **More aggressive local search**: The current approach may not be exploring enough of the search space.
+
+<NAME>
+neighbor_list_2opt_greedy_construction
+</NAME>
+
+<DESCRIPTION>
+This improvement adds two key optimizations:
+1. **K-nearest neighbor list for 2-opt**: Instead of checking all O(n²) edge pairs, we prioritize checking edges to the k-nearest neighbors of each city. This dramatically speeds up 2-opt while still finding most improving moves, since good 2-opt moves typically involve nearby cities.
+2. **Greedy edge construction**: Add an alternative construction heuristic that builds a tour by greedily adding the shortest edges that don't violate tour constraints. This often produces better initial tours than nearest neighbor for certain problem structures.
+3. **Increased perturbation diversity**: More aggressive double-bridge moves and more iterations before giving up.
+</DESCRIPTION>
+
+<DIFF>
+<<<<<<< SEARCH
+    def calc_tour_length(tour):
+        return sum(dist[tour[i], tour[(i + 1) % n]] for i in range(n))
+
+    def nearest_neighbor(start_city):
+=======
+    def calc_tour_length(tour):
+        return sum(dist[tour[i], tour[(i + 1) % n]] for i in range(n))
+
+    # Precompute k-nearest neighbors for faster 2-opt
+    k_neighbors = min(25, n - 1)
+    neighbor_list = np.argsort(dist, axis=1)[:, 1:k_neighbors+1]
+
+    def nearest_neighbor(start_city):
+>>>>>>> REPLACE
+</DIFF>
+
+<DIFF>
+<<<<<<< SEARCH
+    def two_opt(tour):
+        """2-opt with don't-look bits for efficiency."""
+        tour = np.array(tour)
+        dont_look = np.zeros(n, dtype=bool)
+        improved = True
+
+        while improved:
+            if time.perf_counter() >= deadline:
+                break
+            improved = False
+            for i in range(n):
+                if dont_look[tour[i]]:
+                    continue
+                if time.perf_counter() >= deadline:
+                    break
+
+                improved_i = False
+                for j in range(i + 2, n):
+                    if j == n - 1 and i == 0:
+                        continue  # Skip if would reverse entire tour
+
+                    a, b = tour[i], tour[(i + 1) % n]
+                    c, d = tour[j], tour[(j + 1) % n]
+                    delta = (dist[a, c] + dist[b, d]) - (dist[a, b] + dist[c, d])
+
+                    if delta < -0.5:
+                        tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                        improved = True
+                        improved_i = True
+                        # Reset don't-look bits for affected nodes
+                        dont_look[a] = False
+                        dont_look[b] = False
+                        dont_look[c] = False
+                        dont_look[d] = False
+                        break
+
+                if not improved_i:
+                    dont_look[tour[i]] = True
+        return tour
+=======
+    def two_opt(tour):
+        """2-opt with don't-look bits and neighbor list acceleration."""
+        tour = np.array(tour)
+        dont_look = np.zeros(n, dtype=bool)
+        improved = True
+
+        # Build position lookup for fast neighbor-based 2-opt
+        pos = np.zeros(n, dtype=int)
+        for idx in range(n):
+            pos[tour[idx]] = idx
+
+        while improved:
+            if time.perf_counter() >= deadline:
+                break
+            improved = False
+            for i in range(n):
+                if dont_look[tour[i]]:
+                    continue
+                if time.perf_counter() >= deadline:
+                    break
+
+                improved_i = False
+                a = tour[i]
+                b = tour[(i + 1) % n]
+
+                # First check k-nearest neighbors of city a
+                for c in neighbor_list[a]:
+                    j = pos[c]
+                    if j == i or j == (i + 1) % n or (j == i - 1 and i > 0):
+                        continue
+
+                    # Ensure proper ordering for 2-opt
+                    if j < i:
+                        ii, jj = j, i
+                    else:
+                        ii, jj = i, j
+
+                    if jj == n - 1 and ii == 0:
+                        continue
+
+                    aa, bb = tour[ii], tour[(ii + 1) % n]
+                    cc, dd = tour[jj], tour[(jj + 1) % n]
+                    delta = (dist[aa, cc] + dist[bb, dd]) - (dist[aa, bb] + dist[cc, dd])
+
+                    if delta < -0.5:
+                        tour[ii+1:jj+1] = tour[ii+1:jj+1][::-1]
+                        # Update positions
+                        for k in range(ii+1, jj+1):
+                            pos[tour[k]] = k
+                        improved = True
+                        improved_i = True
+                        dont_look[aa] = False
+                        dont_look[bb] = False
+                        dont_look[cc] = False
+                        dont_look[dd] = False
+                        break
+
+                # If no improvement from neighbors, try some random positions
+                if not improved_i:
+                    step = max(1, n // 50)
+                    for j in range(i + 2, n, step):
+                        if j == n - 1 and i == 0:
+                            continue
+
+                        aa, bb = tour[i], tour[(i + 1) % n]
+                        cc, dd = tour[j], tour[(j + 1) % n]
+                        delta = (dist[aa, cc] + dist[bb, dd]) - (dist[aa, bb] + dist[cc, dd])
+
+                        if delta < -0.5:
+                            tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                            for k in range(i+1, j+1):
+                                pos[tour[k]] = k
+                            improved = True
+                            improved_i = True
+                            dont_look[aa] = False
+                            dont_look[bb] = False
+                            dont_look[cc] = False
+                            dont_look[dd] = False
+                            break
+
+                if not improved_i:
+                    dont_look[tour[i]] = True
+        return tour
+>>>>>>> REPLACE
+</DIFF>
+
+<DIFF>
+<<<<<<< SEARCH
+    # Multi-start nearest neighbor
+    best_tour = None
+    best_length = np.inf
+
+    # Determine number of starts based on problem size
+    num_starts = min(n, max(5, n // 10))
+    start_cities = np.linspace(0, n-1, num_starts, dtype=int)
+
+    for start_city in start_cities:
+        if time.perf_counter() >= deadline:
+            break
+        tour = nearest_neighbor(start_city)
+        length = calc_tour_length(tour)
+        if length < best_length:
+            best_length = length
+            best_tour = tour.copy()
+=======
+    def farthest_insertion():
+        """Farthest insertion heuristic - often produces good initial tours."""
+        if n < 3:
+            return np.arange(n)
+
+        # Start with two farthest cities
+        max_dist = 0
+        c1, c2 = 0, 1
+        for i in range(n):
+            for j in range(i + 1, n):
+                if dist[i, j] > max_dist:
+                    max_dist = dist[i, j]
+                    c1, c2 = i, j
+
+        tour = [c1, c2]
+        in_tour = np.zeros(n, dtype=bool)
+        in_tour[c1] = True
+        in_tour[c2] = True
+
+        while len(tour) < n:
+            if time.perf_counter() >= deadline:
+                break
+
+            # Find farthest city from tour
+            max_min_dist = -1
+            farthest = -1
+            for c in range(n):
+                if in_tour[c]:
+                    continue
+                min_dist = min(dist[c, tour[i]] for i in range(len(tour)))
+                if min_dist > max_min_dist:
+                    max_min_dist = min_dist
+                    farthest = c
+
+            if farthest == -1:
+                break
+
+            # Find best position to insert
+            best_increase = np.inf
+            best_pos = 0
+            for i in range(len(tour)):
+                j = (i + 1) % len(tour)
+                increase = dist[tour[i], farthest] + dist[farthest, tour[j]] - dist[tour[i], tour[j]]
+                if increase < best_increase:
+                    best_increase = increase
+                    best_pos = i + 1
+
+            tour.insert(best_pos, farthest)
+            in_tour[farthest] = True
+
+        return np.array(tour)
+
+    # Multi-start nearest neighbor + farthest insertion
+    best_tour = None
+    best_length = np.inf
+
+    # Try farthest insertion first
+    if time.perf_counter() < deadline:
+        tour = farthest_insertion()
+        if len(tour) == n:
+            length = calc_tour_length(tour)
+            if length < best_length:
+                best_length = length
+                best_tour = tour.copy()
+
+    # Determine number of starts based on problem size
+    num_starts = min(n, max(5, n // 10))
+    start_cities = np.linspace(0, n-1, num_starts, dtype=int)
+
+    for start_city in start_cities:
+        if time.perf_counter() >= deadline:
+            break
+        tour = nearest_neighbor(start_city)
+        length = calc_tour_length(tour)
+        if length < best_length:
+            best_length = length
+            best_tour = tour.copy()
+>>>>>>> REPLACE
+</DIFF>
+
+<DIFF>
+<<<<<<< SEARCH
+    # Iterated Local Search with double-bridge perturbation
+    no_improve_count = 0
+    max_no_improve = 5
+=======
+    # Iterated Local Search with double-bridge perturbation
+    no_improve_count = 0
+    max_no_improve = 8  # More attempts before giving up
+>>>>>>> REPLACE
+</DIFF>

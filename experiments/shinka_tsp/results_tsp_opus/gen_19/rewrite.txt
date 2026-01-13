@@ -1,0 +1,397 @@
+# EVOLVE-BLOCK-START
+"""
+TSP Solver: Lin-Kernighan Hybrid with MST-based Construction
+
+Uses MST-based tour construction and Lin-Kernighan style variable-depth local search.
+"""
+
+import numpy as np
+import time
+from collections import defaultdict
+
+
+def solve_tsp(coords: np.ndarray, time_limit_ms: int = 5000) -> tuple:
+    """
+    Solve TSP instance.
+
+    Args:
+        coords: np.ndarray of shape (n, 2) with city coordinates
+        time_limit_ms: Wall-clock time limit in milliseconds
+
+    Returns:
+        Tuple of (tour, length) where tour is list of city indices
+    """
+    n = len(coords)
+
+    if n <= 1:
+        return list(range(n)), 0.0
+
+    if n == 2:
+        return [0, 1], round(np.sqrt(np.sum((coords[0] - coords[1]) ** 2)))
+
+    # Vectorized distance matrix computation
+    diff = coords[:, np.newaxis, :] - coords[np.newaxis, :, :]
+    dist = np.round(np.sqrt(np.sum(diff ** 2, axis=2)))
+
+    start_time = time.perf_counter()
+    deadline = start_time + time_limit_ms / 1000.0
+
+    def calc_tour_length(tour):
+        total = 0
+        for i in range(n):
+            total += dist[tour[i], tour[(i + 1) % n]]
+        return total
+
+    # Precompute k-nearest neighbors
+    k_neighbors = min(15, n - 1)
+    neighbor_list = np.argsort(dist, axis=1)[:, 1:k_neighbors+1]
+
+    def compute_mst():
+        """Compute minimum spanning tree using Prim's algorithm."""
+        in_mst = np.zeros(n, dtype=bool)
+        mst_edges = []
+        min_edge = np.full(n, np.inf)
+        min_edge[0] = 0
+        parent = np.full(n, -1, dtype=int)
+        
+        for _ in range(n):
+            # Find minimum edge to non-MST vertex
+            u = -1
+            min_val = np.inf
+            for v in range(n):
+                if not in_mst[v] and min_edge[v] < min_val:
+                    min_val = min_edge[v]
+                    u = v
+            
+            if u == -1:
+                break
+                
+            in_mst[u] = True
+            if parent[u] != -1:
+                mst_edges.append((parent[u], u))
+            
+            # Update minimum edges
+            for v in range(n):
+                if not in_mst[v] and dist[u, v] < min_edge[v]:
+                    min_edge[v] = dist[u, v]
+                    parent[v] = u
+        
+        return mst_edges
+
+    def mst_tour():
+        """Create tour from MST using DFS (2-approximation)."""
+        mst_edges = compute_mst()
+        
+        # Build adjacency list
+        adj = defaultdict(list)
+        for u, v in mst_edges:
+            adj[u].append(v)
+            adj[v].append(u)
+        
+        # DFS to create tour
+        visited = np.zeros(n, dtype=bool)
+        tour = []
+        stack = [0]
+        
+        while stack:
+            node = stack.pop()
+            if visited[node]:
+                continue
+            visited[node] = True
+            tour.append(node)
+            
+            # Add neighbors in reverse order of distance (greedy)
+            neighbors = sorted(adj[node], key=lambda x: dist[node, x], reverse=True)
+            for neighbor in neighbors:
+                if not visited[neighbor]:
+                    stack.append(neighbor)
+        
+        return tour
+
+    def nearest_neighbor(start_city):
+        """Fast nearest neighbor construction."""
+        tour = [start_city]
+        visited = np.zeros(n, dtype=bool)
+        visited[start_city] = True
+        current = start_city
+
+        for _ in range(n - 1):
+            best_dist = np.inf
+            best_next = -1
+            for j in range(n):
+                if not visited[j] and dist[current, j] < best_dist:
+                    best_dist = dist[current, j]
+                    best_next = j
+            tour.append(best_next)
+            visited[best_next] = True
+            current = best_next
+
+        return tour
+
+    def two_opt_move(tour, i, j):
+        """Perform 2-opt move: reverse segment between i+1 and j."""
+        new_tour = tour[:i+1] + tour[i+1:j+1][::-1] + tour[j+1:]
+        return new_tour
+
+    def lin_kernighan_search(tour, deadline):
+        """Lin-Kernighan style variable-depth search."""
+        tour = list(tour)
+        best_tour = tour[:]
+        best_length = calc_tour_length(tour)
+        
+        # Build position lookup
+        pos = {tour[i]: i for i in range(n)}
+        
+        improved = True
+        while improved and time.perf_counter() < deadline:
+            improved = False
+            
+            for i in range(n):
+                if time.perf_counter() >= deadline:
+                    break
+                
+                # Try breaking edge (tour[i], tour[i+1])
+                t1 = tour[i]
+                t2 = tour[(i + 1) % n]
+                
+                # Look for improving reconnections using candidate list
+                for t3 in neighbor_list[t2]:
+                    if t3 == t1:
+                        continue
+                    
+                    j = pos[t3]
+                    if j == i or j == (i + 1) % n:
+                        continue
+                    
+                    # Standard 2-opt check
+                    if j < i:
+                        ii, jj = j, i
+                    else:
+                        ii, jj = i, j
+                    
+                    if jj == n - 1 and ii == 0:
+                        continue
+                    
+                    a, b = tour[ii], tour[(ii + 1) % n]
+                    c, d = tour[jj], tour[(jj + 1) % n]
+                    
+                    delta = (dist[a, c] + dist[b, d]) - (dist[a, b] + dist[c, d])
+                    
+                    if delta < -0.5:
+                        tour[ii+1:jj+1] = tour[ii+1:jj+1][::-1]
+                        # Update positions
+                        for k in range(ii+1, jj+1):
+                            pos[tour[k]] = k
+                        improved = True
+                        
+                        current_length = calc_tour_length(tour)
+                        if current_length < best_length:
+                            best_length = current_length
+                            best_tour = tour[:]
+                        break
+                
+                if improved:
+                    break
+        
+        return best_tour, best_length
+
+    def three_opt_limited(tour, deadline):
+        """Limited 3-opt moves focusing on promising segments."""
+        tour = list(tour)
+        best_length = calc_tour_length(tour)
+        
+        iterations = min(n * 2, 200)
+        
+        for _ in range(iterations):
+            if time.perf_counter() >= deadline:
+                break
+            
+            # Select three random positions
+            positions = sorted(np.random.choice(n, 3, replace=False))
+            i, j, k = positions
+            
+            if j <= i + 1 or k <= j + 1 or k >= n - 1:
+                continue
+            
+            # Try different 3-opt reconnections
+            a, b = tour[i], tour[i + 1]
+            c, d = tour[j], tour[j + 1]
+            e, f = tour[k], tour[(k + 1) % n]
+            
+            original = dist[a, b] + dist[c, d] + dist[e, f]
+            
+            # Reconnection variant 1: reverse segment [i+1, j]
+            new1 = dist[a, c] + dist[b, d] + dist[e, f]
+            if new1 < original - 0.5:
+                tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                continue
+            
+            # Reconnection variant 2: reverse segment [j+1, k]
+            new2 = dist[a, b] + dist[c, e] + dist[d, f]
+            if new2 < original - 0.5:
+                tour[j+1:k+1] = tour[j+1:k+1][::-1]
+                continue
+        
+        return tour
+
+    def or_opt_fast(tour, deadline):
+        """Fast Or-opt: relocate single cities."""
+        tour = list(tour)
+        improved = True
+        
+        while improved and time.perf_counter() < deadline:
+            improved = False
+            
+            for i in range(n):
+                if time.perf_counter() >= deadline:
+                    break
+                
+                city = tour[i]
+                prev_i = tour[(i - 1) % n]
+                next_i = tour[(i + 1) % n]
+                
+                # Gain from removing city
+                removal_gain = dist[prev_i, city] + dist[city, next_i] - dist[prev_i, next_i]
+                
+                # Check candidate positions using neighbor list
+                for target in neighbor_list[city]:
+                    j = None
+                    for idx in range(n):
+                        if tour[idx] == target:
+                            j = idx
+                            break
+                    
+                    if j is None or j == i or j == (i - 1) % n or j == (i + 1) % n:
+                        continue
+                    
+                    a, b = tour[j], tour[(j + 1) % n]
+                    insertion_cost = dist[a, city] + dist[city, b] - dist[a, b]
+                    
+                    if insertion_cost < removal_gain - 0.5:
+                        # Perform move
+                        tour.pop(i)
+                        new_j = j if j < i else j - 1
+                        tour.insert(new_j + 1, city)
+                        improved = True
+                        break
+                
+                if improved:
+                    break
+        
+        return tour
+
+    def double_bridge(tour):
+        """Double-bridge perturbation."""
+        tour = list(tour)
+        if n < 8:
+            return tour
+        
+        segment_size = max(2, n // 4)
+        p1 = np.random.randint(1, segment_size + 1)
+        p2 = np.random.randint(p1 + 2, min(p1 + segment_size + 2, n - 4))
+        p3 = np.random.randint(p2 + 2, min(p2 + segment_size + 2, n - 2))
+        
+        if p3 >= n - 1:
+            p3 = n - 2
+        if p2 >= p3 - 1:
+            p2 = p3 - 2
+        if p1 >= p2 - 1:
+            p1 = p2 - 2
+        if p1 < 1:
+            return tour
+        
+        new_tour = tour[:p1] + tour[p2:p3] + tour[p1:p2] + tour[p3:]
+        return new_tour
+
+    # Phase 1: Construction (use multiple methods)
+    construction_deadline = start_time + (time_limit_ms / 1000.0) * 0.15
+    
+    best_tour = None
+    best_length = np.inf
+    
+    # Try MST-based tour
+    if time.perf_counter() < construction_deadline:
+        tour = mst_tour()
+        if len(tour) == n:
+            length = calc_tour_length(tour)
+            if length < best_length:
+                best_length = length
+                best_tour = tour[:]
+    
+    # Try multiple nearest neighbor starts
+    num_starts = min(n, 12)
+    start_cities = [int(i * n / num_starts) for i in range(num_starts)]
+    
+    for start in start_cities:
+        if time.perf_counter() >= construction_deadline:
+            break
+        tour = nearest_neighbor(start)
+        length = calc_tour_length(tour)
+        if length < best_length:
+            best_length = length
+            best_tour = tour[:]
+    
+    if best_tour is None:
+        best_tour = nearest_neighbor(0)
+        best_length = calc_tour_length(best_tour)
+    
+    # Phase 2: Iterated Local Search
+    tour = best_tour[:]
+    best_overall_tour = tour[:]
+    best_overall_length = best_length
+    
+    no_improve = 0
+    max_no_improve = 10
+    
+    while time.perf_counter() < deadline:
+        # Lin-Kernighan style search
+        remaining = deadline - time.perf_counter()
+        mini_deadline = time.perf_counter() + min(remaining * 0.3, 0.4)
+        tour, length = lin_kernighan_search(tour, mini_deadline)
+        
+        if time.perf_counter() >= deadline:
+            break
+        
+        # Or-opt pass
+        mini_deadline = time.perf_counter() + min(remaining * 0.2, 0.2)
+        tour = or_opt_fast(tour, mini_deadline)
+        
+        if time.perf_counter() >= deadline:
+            break
+        
+        # Limited 3-opt
+        mini_deadline = time.perf_counter() + 0.1
+        tour = three_opt_limited(tour, mini_deadline)
+        
+        current_length = calc_tour_length(tour)
+        
+        if current_length < best_overall_length:
+            best_overall_length = current_length
+            best_overall_tour = tour[:]
+            no_improve = 0
+        else:
+            no_improve += 1
+        
+        if no_improve >= max_no_improve or time.perf_counter() >= deadline:
+            break
+        
+        # Perturbation
+        tour = double_bridge(best_overall_tour)
+    
+    return best_overall_tour, best_overall_length
+
+
+# EVOLVE-BLOCK-END
+
+
+def run_experiment(coords: np.ndarray, time_limit_ms: int = 5000, optimal_length: float = None) -> dict:
+    tour, length = solve_tsp(coords, time_limit_ms)
+    n = len(coords)
+    valid = (len(tour) == n and set(tour) == set(range(n)))
+    
+    if optimal_length and optimal_length > 0:
+        score = optimal_length / length if length > 0 else 0.0
+    else:
+        score = 1000.0 / length if length > 0 else 0.0
+    
+    return {'tour': tour, 'length': length, 'valid': valid, 'score': score}

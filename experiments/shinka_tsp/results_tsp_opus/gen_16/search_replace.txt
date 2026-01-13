@@ -1,0 +1,256 @@
+Looking at the performance metrics, the current implementation achieves similar scores across different variants. The key bottleneck appears to be in the local search efficiency and the quality of moves being explored.
+
+Let me analyze the code and propose improvements:
+
+1. **The 2-opt implementation has redundant code** - it checks neighbors of city_i and city_i1 separately with duplicate logic
+2. **The Or-opt pass does a full O(n²) search** instead of using neighbor lists like 2-opt does
+3. **The greedy insertion is O(n³)** which is slow for large instances
+4. **Time allocation could be better** - more time on ILS iterations with faster local search
+
+<NAME>
+optimized_oropt_with_neighbor_lists
+</NAME>
+
+<DESCRIPTION>
+The main improvement is to optimize the Or-opt pass to use neighbor lists instead of doing a full O(n²) search for each segment. This will make Or-opt much faster, allowing more ILS iterations within the time limit. Additionally, I'll clean up the 2-opt code to combine the neighbor checks into a single loop, and adjust time allocations to allow more iterations.
+</DESCRIPTION>
+
+<DIFF>
+<<<<<<< SEARCH
+    def or_opt_pass(tour, deadline):
+        tour = list(tour)
+        improved = True
+
+        while improved and time.perf_counter() < deadline:
+            improved = False
+
+            for seg_len in [1, 2, 3]:
+                if improved or time.perf_counter() >= deadline:
+                    break
+
+                for i in range(n - seg_len + 1):
+                    if time.perf_counter() >= deadline:
+                        break
+
+                    prev_i = (i - 1 + n) % n
+                    next_seg = i + seg_len
+
+                    if next_seg >= n:
+                        continue
+
+                    seg_start = tour[i]
+                    seg_end = tour[i + seg_len - 1]
+                    prev_city = tour[prev_i]
+                    next_city = tour[next_seg]
+
+                    current_cost = dist[prev_city, seg_start] + dist[seg_end, next_city]
+                    reconnect_cost = dist[prev_city, next_city]
+
+                    best_delta = 0
+                    best_j = -1
+
+                    for j in range(n - 1):
+                        if j >= i - 1 and j < i + seg_len:
+                            continue
+
+                        city_j = tour[j]
+                        city_j1 = tour[j + 1]
+
+                        insert_cost = dist[city_j, seg_start] + dist[seg_end, city_j1]
+                        edge_cost = dist[city_j, city_j1]
+
+                        delta = reconnect_cost + insert_cost - current_cost - edge_cost
+
+                        if delta < best_delta - 0.5:
+                            best_delta = delta
+                            best_j = j
+
+                    if best_j != -1:
+                        segment = tour[i:i+seg_len]
+                        new_tour = tour[:i] + tour[i+seg_len:]
+                        if best_j < i:
+                            insert_pos = best_j + 1
+                        else:
+                            insert_pos = best_j + 1 - seg_len
+                        tour = new_tour[:insert_pos] + segment + new_tour[insert_pos:]
+                        improved = True
+                        break
+
+        return tour
+=======
+    def or_opt_pass(tour, deadline):
+        tour = list(tour)
+        pos = [0] * n
+        for idx in range(n):
+            pos[tour[idx]] = idx
+
+        improved = True
+
+        while improved and time.perf_counter() < deadline:
+            improved = False
+
+            for seg_len in [1, 2, 3]:
+                if improved or time.perf_counter() >= deadline:
+                    break
+
+                for i in range(n - seg_len + 1):
+                    if time.perf_counter() >= deadline:
+                        break
+
+                    prev_i = (i - 1 + n) % n
+                    next_seg = i + seg_len
+
+                    if next_seg >= n:
+                        continue
+
+                    seg_start = tour[i]
+                    seg_end = tour[i + seg_len - 1]
+                    prev_city = tour[prev_i]
+                    next_city = tour[next_seg]
+
+                    current_cost = dist[prev_city, seg_start] + dist[seg_end, next_city]
+                    reconnect_cost = dist[prev_city, next_city]
+
+                    best_delta = 0
+                    best_j = -1
+
+                    # Use neighbor lists to find promising insertion points
+                    candidate_positions = set()
+                    for nc in neighbors[seg_start]:
+                        p = pos[nc]
+                        if p > 0:
+                            candidate_positions.add(p - 1)
+                        if p < n - 1:
+                            candidate_positions.add(p)
+                    for nc in neighbors[seg_end]:
+                        p = pos[nc]
+                        if p > 0:
+                            candidate_positions.add(p - 1)
+                        if p < n - 1:
+                            candidate_positions.add(p)
+
+                    for j in candidate_positions:
+                        if j >= i - 1 and j < i + seg_len:
+                            continue
+                        if j >= n - 1:
+                            continue
+
+                        city_j = tour[j]
+                        city_j1 = tour[j + 1]
+
+                        insert_cost = dist[city_j, seg_start] + dist[seg_end, city_j1]
+                        edge_cost = dist[city_j, city_j1]
+
+                        delta = reconnect_cost + insert_cost - current_cost - edge_cost
+
+                        if delta < best_delta - 0.5:
+                            best_delta = delta
+                            best_j = j
+
+                    if best_j != -1:
+                        segment = tour[i:i+seg_len]
+                        new_tour = tour[:i] + tour[i+seg_len:]
+                        if best_j < i:
+                            insert_pos = best_j + 1
+                        else:
+                            insert_pos = best_j + 1 - seg_len
+                        tour = new_tour[:insert_pos] + segment + new_tour[insert_pos:]
+                        # Rebuild position array
+                        for idx in range(n):
+                            pos[tour[idx]] = idx
+                        improved = True
+                        break
+
+        return tour
+>>>>>>> REPLACE
+</DIFF>
+
+<DIFF>
+<<<<<<< SEARCH
+    # Phase 2: Intensive local search (60% of remaining time)
+    tour = best_tour[:]
+    remaining = deadline - time.perf_counter()
+
+    mini_deadline = time.perf_counter() + remaining * 0.4
+    tour = two_opt_full(tour, mini_deadline)
+
+    if time.perf_counter() < deadline:
+        mini_deadline = time.perf_counter() + (deadline - time.perf_counter()) * 0.35
+        tour = or_opt_pass(tour, mini_deadline)
+
+    best_overall_tour = tour[:]
+    best_overall_length = calc_tour_length(tour)
+
+    # Phase 3: Iterated Local Search
+    no_improve_count = 0
+    perturbation_strength = 1
+
+    while time.perf_counter() < deadline - 0.015:
+        perturbed = perturb_tour(best_overall_tour, perturbation_strength)
+
+        remaining = deadline - time.perf_counter()
+        mini_deadline = time.perf_counter() + min(remaining * 0.3, 0.08)
+        perturbed = two_opt_full(perturbed, mini_deadline)
+
+        if time.perf_counter() < deadline - 0.01:
+            mini_deadline = time.perf_counter() + min(remaining * 0.15, 0.04)
+            perturbed = or_opt_pass(perturbed, mini_deadline)
+
+        perturbed_length = calc_tour_length(perturbed)
+
+        if perturbed_length < best_overall_length:
+            best_overall_length = perturbed_length
+            best_overall_tour = perturbed[:]
+            no_improve_count = 0
+            perturbation_strength = 1
+        else:
+            no_improve_count += 1
+
+        if no_improve_count > 3:
+            perturbation_strength = min(perturbation_strength + 1, 3)
+            no_improve_count = 0
+=======
+    # Phase 2: Intensive local search (50% of remaining time)
+    tour = best_tour[:]
+    remaining = deadline - time.perf_counter()
+
+    mini_deadline = time.perf_counter() + remaining * 0.35
+    tour = two_opt_full(tour, mini_deadline)
+
+    if time.perf_counter() < deadline:
+        mini_deadline = time.perf_counter() + (deadline - time.perf_counter()) * 0.25
+        tour = or_opt_pass(tour, mini_deadline)
+
+    best_overall_tour = tour[:]
+    best_overall_length = calc_tour_length(tour)
+
+    # Phase 3: Iterated Local Search - more iterations with faster local search
+    no_improve_count = 0
+    perturbation_strength = 1
+
+    while time.perf_counter() < deadline - 0.012:
+        perturbed = perturb_tour(best_overall_tour, perturbation_strength)
+
+        remaining = deadline - time.perf_counter()
+        mini_deadline = time.perf_counter() + min(remaining * 0.25, 0.06)
+        perturbed = two_opt_full(perturbed, mini_deadline)
+
+        if time.perf_counter() < deadline - 0.008:
+            mini_deadline = time.perf_counter() + min(remaining * 0.12, 0.03)
+            perturbed = or_opt_pass(perturbed, mini_deadline)
+
+        perturbed_length = calc_tour_length(perturbed)
+
+        if perturbed_length < best_overall_length:
+            best_overall_length = perturbed_length
+            best_overall_tour = perturbed[:]
+            no_improve_count = 0
+            perturbation_strength = 1
+        else:
+            no_improve_count += 1
+
+        if no_improve_count > 4:
+            perturbation_strength = min(perturbation_strength + 1, 4)
+            no_improve_count = 0
+>>>>>>> REPLACE
+</DIFF>

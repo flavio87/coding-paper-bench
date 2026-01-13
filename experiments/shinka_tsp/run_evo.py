@@ -125,9 +125,9 @@ def main():
         max_patch_attempts=3,
         job_type="local",
         language="python",
-        # Use OpenRouter with Claude
+        # Use OpenRouter with Claude Opus 4.5
         llm_models=[
-            "openrouter/anthropic/claude-sonnet-4",
+            "openrouter/anthropic/claude-opus-4.5",
         ],
         llm_kwargs=dict(
             temperatures=[0.3, 0.7, 1.0],
