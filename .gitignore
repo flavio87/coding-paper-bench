@@ -1,0 +1,31 @@
+# API Keys - NEVER commit these
+.env
+*.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Experiment outputs
+*.json
+!**/package.json
+comparison_results.json
+results/
+
+# OS
+.DS_Store
+Thumbs.db
