@@ -1,0 +1,153 @@
+{
+  "unprocessed_programs": [
+    {
+      "id": "437efa3d-37d1-4e20-96d2-752fb03f84f7",
+      "code": "# EVOLVE-BLOCK-START\n\"\"\"\nTSP Solver: Nearest Neighbor + 2-opt Local Search\n\nThis solver constructs a tour using nearest neighbor heuristic,\nthen improves it using 2-opt edge swaps.\n\"\"\"\n\nimport numpy as np\nimport time\n\n\ndef solve_tsp(coords: np.ndarray, time_limit_ms: int = 5000) -> tuple:\n    \"\"\"\n    Solve TSP instance.\n\n    Args:\n        coords: np.ndarray of shape (n, 2) with city coordinates\n        time_limit_ms: Wall-clock time limit in milliseconds\n\n    Returns:\n        Tuple of (tour, length) where tour is list of city indices\n    \"\"\"\n    n = len(coords)\n\n    # Compute distance matrix\n    dist = np.zeros((n, n))\n    for i in range(n):\n        for j in range(i + 1, n):\n            d = np.sqrt(np.sum((coords[i] - coords[j]) ** 2))\n            dist[i, j] = dist[j, i] = round(d)\n\n    start_time = time.perf_counter()\n    deadline = start_time + time_limit_ms / 1000.0\n\n    # Phase 1: Nearest neighbor construction\n    visited = np.zeros(n, dtype=bool)\n    tour = np.zeros(n, dtype=int)\n\n    current = 0  # Start from city 0\n    tour[0] = current\n    visited[current] = True\n\n    for step in range(1, n):\n        best_next = -1\n        best_dist = np.inf\n        for j in range(n):\n            if not visited[j] and dist[current, j] < best_dist:\n                best_dist = dist[current, j]\n                best_next = j\n        tour[step] = best_next\n        visited[best_next] = True\n        current = best_next\n\n    # Phase 2: 2-opt improvement\n    improved = True\n    while improved and time.perf_counter() < deadline:\n        improved = False\n        for i in range(n - 1):\n            if time.perf_counter() >= deadline:\n                break\n            for j in range(i + 2, n):\n                if j == i + 1:\n                    continue\n\n                # Calculate delta\n                a, b = tour[i], tour[i + 1]\n                c, d = tour[j], tour[(j + 1) % n]\n                delta = (dist[a, c] + dist[b, d]) - (dist[a, b] + dist[c, d])\n\n                if delta < -1e-9:\n                    tour[i+1:j+1] = tour[i+1:j+1][::-1]\n                    improved = True\n\n    # Calculate tour length\n    length = sum(dist[tour[i], tour[(i + 1) % n]] for i in range(n))\n\n    return tour.tolist(), length\n\n\n# EVOLVE-BLOCK-END\n\n\ndef run_experiment(coords: np.ndarray, time_limit_ms: int = 5000, optimal_length: float = None) -> dict:\n    \"\"\"\n    Entry point for ShinkaEvolve evaluation.\n\n    Args:\n        coords: np.ndarray of shape (n, 2) with city coordinates\n        time_limit_ms: Wall-clock time limit in milliseconds\n        optimal_length: Known optimal tour length (if available)\n\n    Returns:\n        dict with tour, length, valid, and score\n    \"\"\"\n    tour, length = solve_tsp(coords, time_limit_ms)\n\n    # Validate tour\n    n = len(coords)\n    valid = (len(tour) == n and set(tour) == set(range(n)))\n\n    # Score: ratio of optimal to found (higher is better, max 1.0)\n    if optimal_length and optimal_length > 0:\n        score = optimal_length / length if length > 0 else 0.0\n    else:\n        # If no optimal, use inverse of length (normalized)\n        score = 1000.0 / length if length > 0 else 0.0\n\n    return {\n        'tour': tour,\n        'length': length,\n        'valid': valid,\n        'score': score\n    }\n",
+      "language": "python",
+      "parent_id": null,
+      "archive_inspiration_ids": [],
+      "top_k_inspiration_ids": [],
+      "island_idx": 0,
+      "generation": 0,
+      "timestamp": 1768345577.7682538,
+      "code_diff": null,
+      "combined_score": 0.18080472862682484,
+      "public_metrics": {
+        "avg_tour_length": 6159.0,
+        "num_instances_solved": 5,
+        "individual_scores": [
+          0.29171528588098017,
+          0.19421246844047388,
+          0.17325017325017325,
+          0.13239772275916853,
+          0.11244799280332846
+        ]
+      },
+      "private_metrics": {
+        "individual_lengths": [
+          3428.0,
+          5149.0,
+          5772.0,
+          7553.0,
+          8893.0
+        ]
+      },
+      "text_feedback": "",
+      "correct": true,
+      "children_count": 0,
+      "complexity": 1.0,
+      "embedding": [],
+      "embedding_pca_2d": [],
+      "embedding_pca_3d": [],
+      "embedding_cluster_id": null,
+      "migration_history": [],
+      "metadata": {
+        "compute_time": 10.008568048477173,
+        "api_costs": 0.0,
+        "embed_cost": 0.0,
+        "novelty_cost": 0.0,
+        "patch_type": "init",
+        "patch_name": "initial_program",
+        "patch_description": "Initial program from file.",
+        "stdout_log": "Evaluating TSP solver: results_tsp_opus/gen_0/main.py\nSaving results to: results_tsp_opus/gen_0/results\nRun 1/5 completed in 0.00 seconds\nRun 2/5 completed in 0.00 seconds\nRun 3/5 completed in 0.01 seconds\nRun 4/5 completed in 0.03 seconds\nRun 5/5 completed in 0.05 seconds\nCorrectness and error status saved to results_tsp_opus/gen_0/results/correct.json\nMetrics saved to results_tsp_opus/gen_0/results/metrics.json\nEvaluation completed successfully.\n\nMetrics:\n  combined_score: 0.18080472862682484\n  public:\n    avg_tour_length: 6159.0\n    num_instances_solved: 5\n    individual_scores: [0.29171528588098017, 0.19421246844047388, 0.17325017325017325, 0.13239772275916853, 0.11244799280332846]\n  private:\n    individual_lengths: [3428.0, 5149.0, 5772.0, 7553.0, 8893.0]\n  execution_time_mean: 0.018662623999995277\n  execution_time_std: 0.01798856082088168\n  num_valid_runs: 5\n  num_invalid_runs: 0\n  all_validation_errors: []\n",
+        "stderr_log": "/home/user/coding-paper-bench/ShinkaEvolve/.venv/lib/python3.11/site-packages/instructor/providers/gemini/client.py:5: FutureWarning: \n\nAll support for the `google.generativeai` package has ended. It will no longer be receiving \nupdates or bug fixes. Please switch to the `google.genai` package as soon as possible.\nSee README for more details:\n\nhttps://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md\n\n  import google.generativeai as genai  # type: ignore[import-not-found]\n",
+        "code_analysis_metrics": {
+          "cyclomatic_complexity": 21,
+          "average_cyclomatic_complexity": 10.5,
+          "halstead_volume": 676.61524164311,
+          "halstead_difficulty": 10.133333333333333,
+          "halstead_effort": 6856.367781983515,
+          "lines_of_code": 114,
+          "logical_lines_of_code": 57,
+          "comments": 11,
+          "maintainability_index": 6.585784068032993,
+          "max_nesting_depth": 5,
+          "complexity_score": 1.0
+        }
+      },
+      "in_archive": false
+    },
+    {
+      "id": "355564ff-b2a8-4e07-9a27-324774340efb",
+      "code": "# EVOLVE-BLOCK-START\n\"\"\"\nTSP Solver: Multi-start Nearest Neighbor + 2-opt + Or-opt Local Search\n\nThis solver constructs tours using nearest neighbor from multiple starts,\nthen improves using 2-opt edge swaps and Or-opt segment relocations.\n\"\"\"\n\nimport numpy as np\nimport time\n\n\ndef solve_tsp(coords: np.ndarray, time_limit_ms: int = 5000) -> tuple:\n    \"\"\"\n    Solve TSP instance.\n\n    Args:\n        coords: np.ndarray of shape (n, 2) with city coordinates\n        time_limit_ms: Wall-clock time limit in milliseconds\n\n    Returns:\n        Tuple of (tour, length) where tour is list of city indices\n    \"\"\"\n    n = len(coords)\n\n    if n <= 1:\n        return list(range(n)), 0.0\n\n    if n == 2:\n        return [0, 1], round(np.sqrt(np.sum((coords[0] - coords[1]) ** 2)))\n\n    # Vectorized distance matrix computation\n    diff = coords[:, np.newaxis, :] - coords[np.newaxis, :, :]\n    dist = np.round(np.sqrt(np.sum(diff ** 2, axis=2)))\n\n    start_time = time.perf_counter()\n    deadline = start_time + time_limit_ms / 1000.0\n\n    def calc_tour_length(tour):\n        return sum(dist[tour[i], tour[(i + 1) % n]] for i in range(n))\n\n    def nearest_neighbor(start_city):\n        \"\"\"Build tour using nearest neighbor starting from given city.\"\"\"\n        visited = np.zeros(n, dtype=bool)\n        tour = np.zeros(n, dtype=int)\n\n        current = start_city\n        tour[0] = current\n        visited[current] = True\n\n        for step in range(1, n):\n            # Find nearest unvisited city\n            min_dist = np.inf\n            best_next = -1\n            for j in range(n):\n                if not visited[j] and dist[current, j] < min_dist:\n                    min_dist = dist[current, j]\n                    best_next = j\n            tour[step] = best_next\n            visited[best_next] = True\n            current = best_next\n\n        return tour\n\n    def two_opt(tour, deadline):\n        \"\"\"Apply 2-opt improvement until no improvement or deadline.\"\"\"\n        improved = True\n        while improved and time.perf_counter() < deadline:\n            improved = False\n            for i in range(n - 1):\n                if time.perf_counter() >= deadline:\n                    break\n                for j in range(i + 2, n):\n                    if j == n - 1 and i == 0:\n                        continue  # Skip if it would just reverse entire tour\n\n                    # Calculate delta for reversing segment [i+1, j]\n                    a, b = tour[i], tour[i + 1]\n                    c, d = tour[j], tour[(j + 1) % n]\n                    delta = (dist[a, c] + dist[b, d]) - (dist[a, b] + dist[c, d])\n\n                    if delta < -0.5:\n                        tour[i+1:j+1] = tour[i+1:j+1][::-1]\n                        improved = True\n        return tour\n\n    def or_opt(tour, deadline):\n        \"\"\"Apply Or-opt: relocate segments of 1, 2, or 3 consecutive cities.\"\"\"\n        improved = True\n        while improved and time.perf_counter() < deadline:\n            improved = False\n            for seg_len in [1, 2, 3]:  # Try segments of length 1, 2, 3\n                if improved or time.perf_counter() >= deadline:\n                    break\n                for i in range(n):\n                    if time.perf_counter() >= deadline:\n                        break\n                    if i + seg_len > n:\n                        continue\n\n                    # Segment to move: tour[i:i+seg_len]\n                    prev_i = (i - 1) % n\n                    next_seg = (i + seg_len) % n\n\n                    # Cost of removing segment\n                    remove_cost = (dist[tour[prev_i], tour[i]] +\n                                   dist[tour[(i + seg_len - 1) % n], tour[next_seg]])\n                    reconnect_cost = dist[tour[prev_i], tour[next_seg]]\n\n                    for j in range(n):\n                        # Skip positions that overlap with current segment position\n                        if j >= i - 1 and j <= i + seg_len:\n                            continue\n\n                        next_j = (j + 1) % n\n\n                        # Cost of inserting segment between j and j+1\n                        insert_cost = (dist[tour[j], tour[i]] +\n                                      dist[tour[(i + seg_len - 1) % n], tour[next_j]])\n                        current_edge = dist[tour[j], tour[next_j]]\n\n                        delta = (reconnect_cost + insert_cost) - (remove_cost + current_edge)\n\n                        if delta < -0.5:\n                            # Perform the move\n                            segment = tour[i:i+seg_len].copy()\n                            new_tour = np.concatenate([\n                                tour[:i],\n                                tour[i+seg_len:]\n                            ])\n                            # Find new position of j in reduced tour\n                            if j < i:\n                                insert_pos = j + 1\n                            else:\n                                insert_pos = j + 1 - seg_len\n                            tour[:] = np.concatenate([\n                                new_tour[:insert_pos],\n                                segment,\n                                new_tour[insert_pos:]\n                            ])\n                            improved = True\n                            break\n                    if improved:\n                        break\n        return tour\n\n    # Phase 1: Multi-start nearest neighbor construction\n    # Use a subset of starting cities based on problem size\n    num_starts = min(n, max(5, n // 10))\n    if n <= 20:\n        start_cities = list(range(n))\n    else:\n        # Choose spread-out starting cities\n        start_cities = list(range(0, n, n // num_starts))[:num_starts]\n\n    best_tour = None\n    best_length = np.inf\n\n    construction_deadline = start_time + (time_limit_ms / 1000.0) * 0.1  # 10% for construction\n\n    for start in start_cities:\n        if time.perf_counter() >= construction_deadline:\n            break\n        tour = nearest_neighbor(start)\n        length = calc_tour_length(tour)\n        if length < best_length:\n            best_length = length\n            best_tour = tour.copy()\n\n    if best_tour is None:\n        best_tour = nearest_neighbor(0)\n\n    # Phase 2: Local search improvement\n    tour = best_tour.copy()\n\n    # Alternate between 2-opt and Or-opt\n    iteration = 0\n    last_length = calc_tour_length(tour)\n\n    while time.perf_counter() < deadline:\n        iteration += 1\n\n        # 2-opt pass\n        mini_deadline = min(deadline, time.perf_counter() + 0.1)\n        tour = two_opt(tour, mini_deadline)\n\n        if time.perf_counter() >= deadline:\n            break\n\n        # Or-opt pass\n        mini_deadline = min(deadline, time.perf_counter() + 0.1)\n        tour = or_opt(tour, mini_deadline)\n\n        current_length = calc_tour_length(tour)\n        if current_length >= last_length - 0.5:\n            break  # No significant improvement\n        last_length = current_length\n\n    # Calculate final tour length\n    length = calc_tour_length(tour)\n\n    return tour.tolist(), length\n\n\n# EVOLVE-BLOCK-END\n\n\ndef run_experiment(coords: np.ndarray, time_limit_ms: int = 5000, optimal_length: float = None) -> dict:\n    \"\"\"\n    Entry point for ShinkaEvolve evaluation.\n\n    Args:\n        coords: np.ndarray of shape (n, 2) with city coordinates\n        time_limit_ms: Wall-clock time limit in milliseconds\n        optimal_length: Known optimal tour length (if available)\n\n    Returns:\n        dict with tour, length, valid, and score\n    \"\"\"\n    tour, length = solve_tsp(coords, time_limit_ms)\n\n    # Validate tour\n    n = len(coords)\n    valid = (len(tour) == n and set(tour) == set(range(n)))\n\n    # Score: ratio of optimal to found (higher is better, max 1.0)\n    if optimal_length and optimal_length > 0:\n        score = optimal_length / length if length > 0 else 0.0\n    else:\n        # If no optimal, use inverse of length (normalized)\n        score = 1000.0 / length if length > 0 else 0.0\n\n    return {\n        'tour': tour,\n        'length': length,\n        'valid': valid,\n        'score': score\n    }",
+      "language": "python",
+      "parent_id": "437efa3d-37d1-4e20-96d2-752fb03f84f7",
+      "archive_inspiration_ids": [],
+      "top_k_inspiration_ids": [],
+      "island_idx": 0,
+      "generation": 1,
+      "timestamp": 1768347014.2055485,
+      "code_diff": null,
+      "combined_score": 0.18817651899419527,
+      "public_metrics": {
+        "avg_tour_length": 5855.2,
+        "num_instances_solved": 5,
+        "individual_scores": [
+          0.2927400468384075,
+          0.20837674515524068,
+          0.18142235123367198,
+          0.13757050488375291,
+          0.12077294685990338
+        ]
+      },
+      "private_metrics": {
+        "individual_lengths": [
+          3416.0,
+          4799.0,
+          5512.0,
+          7269.0,
+          8280.0
+        ]
+      },
+      "text_feedback": "",
+      "correct": true,
+      "children_count": 0,
+      "complexity": 1.0,
+      "embedding": [],
+      "embedding_pca_2d": [],
+      "embedding_pca_3d": [],
+      "embedding_cluster_id": null,
+      "migration_history": [],
+      "metadata": {
+        "compute_time": 8.004979848861694,
+        "patch_type": "full",
+        "api_costs": 0,
+        "num_applied": 0,
+        "patch_name": null,
+        "patch_description": null,
+        "error_attempt": "LLM response content was None.",
+        "novelty_attempt": 1,
+        "resample_attempt": 2,
+        "patch_attempt": 3,
+        "model_name": "openrouter/anthropic/claude-opus-4-5-20251101",
+        "temperature": 1.0,
+        "max_tokens": 8192,
+        "llm_result": null,
+        "diff_summary": {},
+        "embed_cost": 0.0,
+        "novelty_cost": 0.0,
+        "stdout_log": "Evaluating TSP solver: results_tsp_opus/gen_1/main.py\nSaving results to: results_tsp_opus/gen_1/results\nRun 1/5 completed in 0.00 seconds\nRun 2/5 completed in 0.20 seconds\nRun 3/5 completed in 0.03 seconds\nRun 4/5 completed in 0.07 seconds\nRun 5/5 completed in 0.16 seconds\nCorrectness and error status saved to results_tsp_opus/gen_1/results/correct.json\nMetrics saved to results_tsp_opus/gen_1/results/metrics.json\nEvaluation completed successfully.\n\nMetrics:\n  combined_score: 0.18817651899419527\n  public:\n    avg_tour_length: 5855.2\n    num_instances_solved: 5\n    individual_scores: [0.2927400468384075, 0.20837674515524068, 0.18142235123367198, 0.13757050488375291, 0.12077294685990338]\n  private:\n    individual_lengths: [3416.0, 4799.0, 5512.0, 7269.0, 8280.0]\n  execution_time_mean: 0.09290550280006755\n  execution_time_std: 0.07606351368207795\n  num_valid_runs: 5\n  num_invalid_runs: 0\n  all_validation_errors: []\n",
+        "stderr_log": "/home/user/coding-paper-bench/ShinkaEvolve/.venv/lib/python3.11/site-packages/instructor/providers/gemini/client.py:5: FutureWarning: \n\nAll support for the `google.generativeai` package has ended. It will no longer be receiving \nupdates or bug fixes. Please switch to the `google.genai` package as soon as possible.\nSee README for more details:\n\nhttps://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md\n\n  import google.generativeai as genai  # type: ignore[import-not-found]\n",
+        "code_analysis_metrics": {
+          "cyclomatic_complexity": 17,
+          "average_cyclomatic_complexity": 8.5,
+          "halstead_volume": 2045.1997075476904,
+          "halstead_difficulty": 13.758474576271187,
+          "halstead_effort": 28138.828179692166,
+          "lines_of_code": 238,
+          "logical_lines_of_code": 141,
+          "comments": 26,
+          "maintainability_index": -17.995783014999787,
+          "max_nesting_depth": 8,
+          "complexity_score": 1.0
+        }
+      },
+      "in_archive": false
+    }
+  ],
+  "meta_summary": null,
+  "meta_scratch_pad": null,
+  "meta_recommendations": null,
+  "meta_recommendations_history": [],
+  "total_programs_meta_processed": 0
+}

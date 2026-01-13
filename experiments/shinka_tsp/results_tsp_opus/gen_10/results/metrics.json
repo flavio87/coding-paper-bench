@@ -1,0 +1,28 @@
+{
+    "combined_score": 0.19103211969822403,
+    "public": {
+        "avg_tour_length": 5724.2,
+        "num_instances_solved": 5,
+        "individual_scores": [
+            0.2927400468384075,
+            0.21326508850501172,
+            0.18142235123367198,
+            0.14259232853272494,
+            0.12514078338130397
+        ]
+    },
+    "private": {
+        "individual_lengths": [
+            3416.0,
+            4689.0,
+            5512.0,
+            7013.0,
+            7991.0
+        ]
+    },
+    "execution_time_mean": 4.983755880999979,
+    "execution_time_std": 0.001948135083423688,
+    "num_valid_runs": 5,
+    "num_invalid_runs": 0,
+    "all_validation_errors": []
+}

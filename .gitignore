@@ -20,13 +20,25 @@ ENV/
 *.swp
 *.swo
 
-# Experiment outputs
-*.json
-!**/package.json
+# Experiment outputs (selective)
 comparison_results.json
-results/
+experiments/tsp_comparison/evolution_history.json
 
 # OS
 .DS_Store
 Thumbs.db
+
+# External dependencies (clone separately)
 ShinkaEvolve/
+
+# Large binary files in results (keep code/metrics, exclude binaries)
+*.npz
+*.sqlite
+*.db
+
+# Execution logs (can be regenerated)
+job_log.out
+job_log.err
+
+# Keep meta_memory.json for experiment reproducibility
+!experiments/shinka_tsp/results_*/meta_memory.json
