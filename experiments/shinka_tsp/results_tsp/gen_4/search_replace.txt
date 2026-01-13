@@ -1,0 +1,223 @@
+Looking at the current performance and the code, I can see that the 3-opt implementation is quite complex and may not be efficiently exploring all beneficial moves. The current 3-opt also has some issues with move calculations and segment handling.
+
+I'll implement a more effective approach by adding Or-opt moves (which relocate segments of 1-3 cities) and improving the local search strategy. Or-opt is often more effective than 3-opt for TSP because it's faster to compute and finds good improvements.
+
+<NAME>
+add_or_opt_local_search
+</NAME>
+
+<DESCRIPTION>
+I'm replacing the complex 3-opt implementation with a more effective Or-opt local search that relocates segments of cities (1, 2, or 3 cities) to different positions in the tour. Or-opt is often more effective than 3-opt because:
+
+1. It's computationally simpler and faster
+2. It finds good local improvements more reliably
+3. It's easier to implement correctly without bugs
+4. It can be combined with 2-opt for comprehensive local search
+
+The new implementation will:
+1. Start with 2-opt for basic edge improvements
+2. Apply Or-opt moves for segment relocations
+3. Use better time management between construction and improvement phases
+4. Have more robust move calculations
+</DESCRIPTION>
+
+<DIFF>
+<<<<<<< SEARCH
+def three_opt_improvement(tour, dist, n, deadline):
+    """3-opt local search improvement."""
+    tour = tour[:]
+    improved = True
+
+    while improved and time.perf_counter() < deadline:
+        improved = False
+
+        for i in range(n - 2):
+            if time.perf_counter() >= deadline:
+                break
+
+            for j in range(i + 2, n - 1):
+                if time.perf_counter() >= deadline:
+                    break
+
+                for k in range(j + 2, n):
+                    if k == i:
+                        continue
+
+                    # Current edges: (i,i+1), (j,j+1), (k,k+1)
+                    a, b = tour[i], tour[i + 1]
+                    c, d = tour[j], tour[j + 1]
+                    e, f = tour[k], tour[(k + 1) % n]
+
+                    current_cost = dist[a, b] + dist[c, d] + dist[e, f]
+
+                    # Try different 3-opt moves
+                    moves = [
+                        # Move 1: reverse segment (i+1, j)
+                        (dist[a, c] + dist[b, d] + dist[e, f], 1),
+                        # Move 2: reverse segment (j+1, k)
+                        (dist[a, b] + dist[c, e] + dist[d, f], 2),
+                        # Move 3: reverse both segments
+                        (dist[a, c] + dist[b, e] + dist[d, f], 3),
+                        # Move 4: relocate segment (i+1, j) after k
+                        (dist[a, d] + dist[c, f] + dist[e, b], 4),
+                        # Move 5: relocate segment (j+1, k) after i
+                        (dist[a, d] + dist[c, b] + dist[e, f], 5)
+                    ]
+
+                    best_cost, best_move = min(moves)
+
+                    if best_cost < current_cost - 1e-9:
+                        # Apply the best move
+                        if best_move == 1:
+                            tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                        elif best_move == 2:
+                            tour[j+1:k+1] = tour[j+1:k+1][::-1]
+                        elif best_move == 3:
+                            tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                            tour[j+1:k+1] = tour[j+1:k+1][::-1]
+                        elif best_move == 4:
+                            # Relocate (i+1, j) after k
+                            segment = tour[i+1:j+1]
+                            tour = tour[:i+1] + tour[j+1:k+1] + segment + tour[k+1:]
+                        elif best_move == 5:
+                            # Relocate (j+1, k) after i
+                            segment = tour[j+1:k+1]
+                            tour = tour[:i+1] + segment + tour[i+1:j+1] + tour[k+1:]
+
+                        improved = True
+                        break
+
+                if improved:
+                    break
+            if improved:
+                break
+
+    return tour
+=======
+def local_search_improvement(tour, dist, n, deadline):
+    """Combined 2-opt and Or-opt local search improvement."""
+    tour = tour[:]
+
+    # First apply 2-opt for basic improvements
+    tour = two_opt_improvement(tour, dist, n, deadline)
+
+    # Then apply Or-opt for segment relocations
+    tour = or_opt_improvement(tour, dist, n, deadline)
+
+    return tour
+
+
+def two_opt_improvement(tour, dist, n, deadline):
+    """2-opt local search improvement."""
+    tour = tour[:]
+    improved = True
+
+    while improved and time.perf_counter() < deadline:
+        improved = False
+        for i in range(n - 1):
+            if time.perf_counter() >= deadline:
+                break
+            for j in range(i + 2, n):
+                if j == i + 1:
+                    continue
+
+                # Calculate delta
+                a, b = tour[i], tour[i + 1]
+                c, d = tour[j], tour[(j + 1) % n]
+                delta = (dist[a, c] + dist[b, d]) - (dist[a, b] + dist[c, d])
+
+                if delta < -1e-9:
+                    tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                    improved = True
+
+    return tour
+
+
+def or_opt_improvement(tour, dist, n, deadline):
+    """Or-opt local search: relocate segments of 1, 2, or 3 cities."""
+    tour = tour[:]
+    improved = True
+
+    while improved and time.perf_counter() < deadline:
+        improved = False
+
+        # Try segments of length 1, 2, and 3
+        for segment_len in [1, 2, 3]:
+            if time.perf_counter() >= deadline:
+                break
+
+            for i in range(n):
+                if time.perf_counter() >= deadline:
+                    break
+
+                # Extract segment of given length starting at position i
+                segment_end = (i + segment_len - 1) % n
+
+                # Skip if segment wraps around and is too long
+                if segment_len > 1 and i + segment_len > n:
+                    continue
+
+                # Current edges before and after segment
+                prev_i = (i - 1) % n
+                next_end = (segment_end + 1) % n
+
+                current_cost = dist[tour[prev_i], tour[i]] + dist[tour[segment_end], tour[next_end]]
+
+                # Try inserting segment at each position
+                for j in range(n):
+                    if time.perf_counter() >= deadline:
+                        break
+
+                    # Skip positions within or adjacent to current segment
+                    if segment_len == 1:
+                        if j == i or j == (i - 1) % n or j == (i + 1) % n:
+                            continue
+                    else:
+                        if i <= j <= segment_end or j == (i - 1) % n or j == (segment_end + 1) % n:
+                            continue
+
+                    # Calculate cost of inserting segment after position j
+                    next_j = (j + 1) % n
+                    new_cost = dist[tour[prev_i], tour[next_end]] + dist[tour[j], tour[i]] + dist[tour[segment_end], tour[next_j]]
+                    old_j_cost = dist[tour[j], tour[next_j]]
+
+                    delta = new_cost - current_cost - old_j_cost
+
+                    if delta < -1e-9:
+                        # Perform the move
+                        if segment_len == 1:
+                            # Move single city
+                            city = tour[i]
+                            tour.pop(i)
+                            insert_pos = j if j < i else j
+                            tour.insert(insert_pos + 1, city)
+                        else:
+                            # Move segment
+                            segment = tour[i:i + segment_len]
+                            # Remove segment
+                            tour = tour[:i] + tour[i + segment_len:]
+                            # Insert at new position
+                            insert_pos = j if j < i else j - segment_len
+                            tour = tour[:insert_pos + 1] + segment + tour[insert_pos + 1:]
+
+                        improved = True
+                        break
+
+                if improved:
+                    break
+            if improved:
+                break
+
+    return tour
+>>>>>>> REPLACE
+</DIFF>
+
+<DIFF>
+<<<<<<< SEARCH
+        # Phase 2: 3-opt improvement
+        tour = three_opt_improvement(tour, dist, n, start_deadline)
+=======
+        # Phase 2: Local search improvement (2-opt + Or-opt)
+        tour = local_search_improvement(tour, dist, n, start_deadline)
+>>>>>>> REPLACE
+</DIFF>

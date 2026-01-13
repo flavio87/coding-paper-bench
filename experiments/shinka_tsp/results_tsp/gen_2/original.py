@@ -131,32 +131,6 @@ def eulerian_to_hamiltonian(adj, n, start):
     return tour
 
 
-def two_opt_improvement(tour, dist, n, deadline):
-    """2-opt local search improvement."""
-    tour = tour[:]
-    improved = True
-
-    while improved and time.perf_counter() < deadline:
-        improved = False
-        for i in range(n - 1):
-            if time.perf_counter() >= deadline:
-                break
-            for j in range(i + 2, n):
-                if j == i + 1:
-                    continue
-
-                # Calculate delta
-                a, b = tour[i], tour[i + 1]
-                c, d = tour[j], tour[(j + 1) % n]
-                delta = (dist[a, c] + dist[b, d]) - (dist[a, b] + dist[c, d])
-
-                if delta < -1e-9:
-                    tour[i+1:j+1] = tour[i+1:j+1][::-1]
-                    improved = True
-
-    return tour
-
-
 def three_opt_improvement(tour, dist, n, deadline):
     """3-opt local search improvement."""
     tour = tour[:]
@@ -165,52 +139,59 @@ def three_opt_improvement(tour, dist, n, deadline):
     while improved and time.perf_counter() < deadline:
         improved = False
 
-        for i in range(n):
+        for i in range(n - 2):
             if time.perf_counter() >= deadline:
                 break
 
-            for j in range(i + 2, n):
+            for j in range(i + 2, n - 1):
                 if time.perf_counter() >= deadline:
                     break
 
-                for k in range(j + 2, n + (1 if i == 0 else 0)):
-                    if i == 0 and k >= n:
-                        k = k % n
+                for k in range(j + 2, n):
                     if k == i:
                         continue
 
-                    # Current edges to remove
-                    a, b = tour[i], tour[(i + 1) % n]
-                    c, d = tour[j], tour[(j + 1) % n]
+                    # Current edges: (i,i+1), (j,j+1), (k,k+1)
+                    a, b = tour[i], tour[i + 1]
+                    c, d = tour[j], tour[j + 1]
                     e, f = tour[k], tour[(k + 1) % n]
 
                     current_cost = dist[a, b] + dist[c, d] + dist[e, f]
 
-                    # Try 2-opt style moves first (subset of 3-opt)
-                    # Case 1: reconnect a-c, b-d (reverse middle segment)
-                    new_cost1 = dist[a, c] + dist[b, d] + dist[e, f]
+                    # Try different 3-opt moves
+                    moves = [
+                        # Move 1: reverse segment (i+1, j)
+                        (dist[a, c] + dist[b, d] + dist[e, f], 1),
+                        # Move 2: reverse segment (j+1, k)
+                        (dist[a, b] + dist[c, e] + dist[d, f], 2),
+                        # Move 3: reverse both segments
+                        (dist[a, c] + dist[b, e] + dist[d, f], 3),
+                        # Move 4: relocate segment (i+1, j) after k
+                        (dist[a, d] + dist[c, f] + dist[e, b], 4),
+                        # Move 5: relocate segment (j+1, k) after i
+                        (dist[a, d] + dist[c, b] + dist[e, f], 5)
+                    ]
 
-                    # Case 2: reconnect c-e, d-f (reverse last segment)
-                    new_cost2 = dist[a, b] + dist[c, e] + dist[d, f]
+                    best_cost, best_move = min(moves)
 
-                    if new_cost1 < current_cost - 1e-9:
-                        # Reverse segment between i+1 and j
-                        if i < j:
+                    if best_cost < current_cost - 1e-9:
+                        # Apply the best move
+                        if best_move == 1:
                             tour[i+1:j+1] = tour[i+1:j+1][::-1]
-                        else:
-                            # Handle wraparound
-                            tour = tour[j+1:i+1] + tour[:j+1][::-1] + tour[i+1:]
-                        improved = True
-                        break
-                    elif new_cost2 < current_cost - 1e-9:
-                        # Reverse segment between j+1 and k
-                        if j < k:
+                        elif best_move == 2:
                             tour[j+1:k+1] = tour[j+1:k+1][::-1]
-                        else:
-                            # Handle wraparound
-                            seg = tour[j+1:] + tour[:k+1]
-                            seg = seg[::-1]
-                            tour = seg[-(k+1):] + tour[k+1:j+1] + seg[:len(seg)-(k+1)]
+                        elif best_move == 3:
+                            tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                            tour[j+1:k+1] = tour[j+1:k+1][::-1]
+                        elif best_move == 4:
+                            # Relocate (i+1, j) after k
+                            segment = tour[i+1:j+1]
+                            tour = tour[:i+1] + tour[j+1:k+1] + segment + tour[k+1:]
+                        elif best_move == 5:
+                            # Relocate (j+1, k) after i
+                            segment = tour[j+1:k+1]
+                            tour = tour[:i+1] + segment + tour[i+1:j+1] + tour[k+1:]
+
                         improved = True
                         break
 

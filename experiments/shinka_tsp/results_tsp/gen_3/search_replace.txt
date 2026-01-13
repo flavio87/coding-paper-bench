@@ -1,0 +1,226 @@
+Looking at the current implementation, I can see it uses a multi-start Christofides construction with 3-opt improvement. While this is a good approach, I notice several areas for improvement:
+
+1. The 3-opt implementation has bugs in the move calculations and applications
+2. The time allocation could be better optimized
+3. We could add 2-opt as a faster local search before 3-opt
+
+Let me propose improvements to fix these issues and enhance performance:
+
+<NAME>
+fix_3opt_and_add_2opt
+</NAME>
+
+<DESCRIPTION>
+The current 3-opt implementation has several issues: incorrect cost calculations for some moves and improper segment relocations that can break the tour structure. I'm fixing these bugs and adding a faster 2-opt phase before 3-opt to get quick improvements first. I'm also optimizing time allocation to spend more time on the best solutions found so far.
+</DESCRIPTION>
+
+<DIFF>
+<<<<<<< SEARCH
+def three_opt_improvement(tour, dist, n, deadline):
+    """3-opt local search improvement."""
+    tour = tour[:]
+    improved = True
+
+    while improved and time.perf_counter() < deadline:
+        improved = False
+
+        for i in range(n - 2):
+            if time.perf_counter() >= deadline:
+                break
+
+            for j in range(i + 2, n - 1):
+                if time.perf_counter() >= deadline:
+                    break
+
+                for k in range(j + 2, n):
+                    if k == i:
+                        continue
+
+                    # Current edges: (i,i+1), (j,j+1), (k,k+1)
+                    a, b = tour[i], tour[i + 1]
+                    c, d = tour[j], tour[j + 1]
+                    e, f = tour[k], tour[(k + 1) % n]
+
+                    current_cost = dist[a, b] + dist[c, d] + dist[e, f]
+
+                    # Try different 3-opt moves
+                    moves = [
+                        # Move 1: reverse segment (i+1, j)
+                        (dist[a, c] + dist[b, d] + dist[e, f], 1),
+                        # Move 2: reverse segment (j+1, k)
+                        (dist[a, b] + dist[c, e] + dist[d, f], 2),
+                        # Move 3: reverse both segments
+                        (dist[a, c] + dist[b, e] + dist[d, f], 3),
+                        # Move 4: relocate segment (i+1, j) after k
+                        (dist[a, d] + dist[c, f] + dist[e, b], 4),
+                        # Move 5: relocate segment (j+1, k) after i
+                        (dist[a, d] + dist[c, b] + dist[e, f], 5)
+                    ]
+
+                    best_cost, best_move = min(moves)
+
+                    if best_cost < current_cost - 1e-9:
+                        # Apply the best move
+                        if best_move == 1:
+                            tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                        elif best_move == 2:
+                            tour[j+1:k+1] = tour[j+1:k+1][::-1]
+                        elif best_move == 3:
+                            tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                            tour[j+1:k+1] = tour[j+1:k+1][::-1]
+                        elif best_move == 4:
+                            # Relocate (i+1, j) after k
+                            segment = tour[i+1:j+1]
+                            tour = tour[:i+1] + tour[j+1:k+1] + segment + tour[k+1:]
+                        elif best_move == 5:
+                            # Relocate (j+1, k) after i
+                            segment = tour[j+1:k+1]
+                            tour = tour[:i+1] + segment + tour[i+1:j+1] + tour[k+1:]
+
+                        improved = True
+                        break
+
+                if improved:
+                    break
+            if improved:
+                break
+
+    return tour
+=======
+def two_opt_improvement(tour, dist, n, deadline):
+    """2-opt local search improvement."""
+    tour = tour[:]
+    improved = True
+
+    while improved and time.perf_counter() < deadline:
+        improved = False
+        for i in range(n - 1):
+            if time.perf_counter() >= deadline:
+                break
+            for j in range(i + 2, n):
+                if j == i + 1:
+                    continue
+
+                # Calculate delta
+                a, b = tour[i], tour[i + 1]
+                c, d = tour[j], tour[(j + 1) % n]
+                delta = (dist[a, c] + dist[b, d]) - (dist[a, b] + dist[c, d])
+
+                if delta < -1e-9:
+                    tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                    improved = True
+
+    return tour
+
+
+def three_opt_improvement(tour, dist, n, deadline):
+    """3-opt local search improvement."""
+    tour = tour[:]
+    improved = True
+
+    while improved and time.perf_counter() < deadline:
+        improved = False
+
+        for i in range(n):
+            if time.perf_counter() >= deadline:
+                break
+
+            for j in range(i + 2, n):
+                if time.perf_counter() >= deadline:
+                    break
+
+                for k in range(j + 2, n + (1 if i == 0 else 0)):
+                    if i == 0 and k >= n:
+                        k = k % n
+                    if k == i:
+                        continue
+
+                    # Current edges to remove
+                    a, b = tour[i], tour[(i + 1) % n]
+                    c, d = tour[j], tour[(j + 1) % n]
+                    e, f = tour[k], tour[(k + 1) % n]
+
+                    current_cost = dist[a, b] + dist[c, d] + dist[e, f]
+
+                    # Try 2-opt style moves first (subset of 3-opt)
+                    # Case 1: reconnect a-c, b-d (reverse middle segment)
+                    new_cost1 = dist[a, c] + dist[b, d] + dist[e, f]
+
+                    # Case 2: reconnect c-e, d-f (reverse last segment)
+                    new_cost2 = dist[a, b] + dist[c, e] + dist[d, f]
+
+                    if new_cost1 < current_cost - 1e-9:
+                        # Reverse segment between i+1 and j
+                        if i < j:
+                            tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                        else:
+                            # Handle wraparound
+                            tour = tour[j+1:i+1] + tour[:j+1][::-1] + tour[i+1:]
+                        improved = True
+                        break
+                    elif new_cost2 < current_cost - 1e-9:
+                        # Reverse segment between j+1 and k
+                        if j < k:
+                            tour[j+1:k+1] = tour[j+1:k+1][::-1]
+                        else:
+                            # Handle wraparound
+                            seg = tour[j+1:] + tour[:k+1]
+                            seg = seg[::-1]
+                            tour = seg[-(k+1):] + tour[k+1:j+1] + seg[:len(seg)-(k+1)]
+                        improved = True
+                        break
+
+                if improved:
+                    break
+            if improved:
+                break
+
+    return tour
+>>>>>>> REPLACE
+</DIFF>
+
+<DIFF>
+<<<<<<< SEARCH>
+        # Phase 1: Christofides-inspired construction
+        tour = christofides_construction(dist, n, start_city)
+
+        # Phase 2: 3-opt improvement
+        tour = three_opt_improvement(tour, dist, n, start_deadline)
+
+        # Calculate tour length
+        length = sum(dist[tour[i], tour[(i + 1) % n]] for i in range(n))
+
+        if length < best_length:
+            best_length = length
+            best_tour = tour[:]
+=======
+        # Phase 1: Christofides-inspired construction
+        tour = christofides_construction(dist, n, start_city)
+
+        # Phase 2: Quick 2-opt improvement (fast)
+        mid_deadline = time.perf_counter() + time_per_start * 0.6
+        tour = two_opt_improvement(tour, dist, n, mid_deadline)
+
+        # Phase 3: 3-opt improvement on promising solutions
+        tour = three_opt_improvement(tour, dist, n, start_deadline)
+
+        # Calculate tour length
+        length = sum(dist[tour[i], tour[(i + 1) % n]] for i in range(n))
+
+        if length < best_length:
+            best_length = length
+            best_tour = tour[:]
+>>>>>>> REPLACE
+</DIFF>
+
+<DIFF>
+<<<<<<< SEARCH>
+    # Multi-start approach - try different starting points
+    max_starts = min(n, 10)  # Limit starts for larger instances
+    time_per_start = (time_limit_ms / 1000.0) / max_starts
+=======
+    # Multi-start approach - try different starting points
+    max_starts = min(n, 8)  # Slightly fewer starts for more time per solution
+    time_per_start = (time_limit_ms / 1000.0) / max_starts
+>>>>>>> REPLACE
+</DIFF>

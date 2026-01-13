@@ -49,8 +49,8 @@ def solve_tsp(coords: np.ndarray, time_limit_ms: int = 5000) -> tuple:
         # Phase 1: Christofides-inspired construction
         tour = christofides_construction(dist, n, start_city)
 
-        # Phase 2: 3-opt improvement
-        tour = three_opt_improvement(tour, dist, n, start_deadline)
+        # Phase 2: Local search improvement (2-opt + Or-opt)
+        tour = local_search_improvement(tour, dist, n, start_deadline)
 
         # Calculate tour length
         length = sum(dist[tour[i], tour[(i + 1) % n]] for i in range(n))
@@ -131,6 +131,19 @@ def eulerian_to_hamiltonian(adj, n, start):
     return tour
 
 
+def local_search_improvement(tour, dist, n, deadline):
+    """Combined 2-opt and Or-opt local search improvement."""
+    tour = tour[:]
+
+    # First apply 2-opt for basic improvements
+    tour = two_opt_improvement(tour, dist, n, deadline)
+
+    # Then apply Or-opt for segment relocations
+    tour = or_opt_improvement(tour, dist, n, deadline)
+
+    return tour
+
+
 def two_opt_improvement(tour, dist, n, deadline):
     """2-opt local search improvement."""
     tour = tour[:]
@@ -157,60 +170,73 @@ def two_opt_improvement(tour, dist, n, deadline):
     return tour
 
 
-def three_opt_improvement(tour, dist, n, deadline):
-    """3-opt local search improvement."""
+def or_opt_improvement(tour, dist, n, deadline):
+    """Or-opt local search: relocate segments of 1, 2, or 3 cities."""
     tour = tour[:]
     improved = True
 
     while improved and time.perf_counter() < deadline:
         improved = False
 
-        for i in range(n):
+        # Try segments of length 1, 2, and 3
+        for segment_len in [1, 2, 3]:
             if time.perf_counter() >= deadline:
                 break
 
-            for j in range(i + 2, n):
+            for i in range(n):
                 if time.perf_counter() >= deadline:
                     break
 
-                for k in range(j + 2, n + (1 if i == 0 else 0)):
-                    if i == 0 and k >= n:
-                        k = k % n
-                    if k == i:
-                        continue
+                # Extract segment of given length starting at position i
+                segment_end = (i + segment_len - 1) % n
 
-                    # Current edges to remove
-                    a, b = tour[i], tour[(i + 1) % n]
-                    c, d = tour[j], tour[(j + 1) % n]
-                    e, f = tour[k], tour[(k + 1) % n]
+                # Skip if segment wraps around and is too long
+                if segment_len > 1 and i + segment_len > n:
+                    continue
 
-                    current_cost = dist[a, b] + dist[c, d] + dist[e, f]
+                # Current edges before and after segment
+                prev_i = (i - 1) % n
+                next_end = (segment_end + 1) % n
 
-                    # Try 2-opt style moves first (subset of 3-opt)
-                    # Case 1: reconnect a-c, b-d (reverse middle segment)
-                    new_cost1 = dist[a, c] + dist[b, d] + dist[e, f]
+                current_cost = dist[tour[prev_i], tour[i]] + dist[tour[segment_end], tour[next_end]]
 
-                    # Case 2: reconnect c-e, d-f (reverse last segment)
-                    new_cost2 = dist[a, b] + dist[c, e] + dist[d, f]
-
-                    if new_cost1 < current_cost - 1e-9:
-                        # Reverse segment between i+1 and j
-                        if i < j:
-                            tour[i+1:j+1] = tour[i+1:j+1][::-1]
-                        else:
-                            # Handle wraparound
-                            tour = tour[j+1:i+1] + tour[:j+1][::-1] + tour[i+1:]
-                        improved = True
+                # Try inserting segment at each position
+                for j in range(n):
+                    if time.perf_counter() >= deadline:
                         break
-                    elif new_cost2 < current_cost - 1e-9:
-                        # Reverse segment between j+1 and k
-                        if j < k:
-                            tour[j+1:k+1] = tour[j+1:k+1][::-1]
+
+                    # Skip positions within or adjacent to current segment
+                    if segment_len == 1:
+                        if j == i or j == (i - 1) % n or j == (i + 1) % n:
+                            continue
+                    else:
+                        if i <= j <= segment_end or j == (i - 1) % n or j == (segment_end + 1) % n:
+                            continue
+
+                    # Calculate cost of inserting segment after position j
+                    next_j = (j + 1) % n
+                    new_cost = dist[tour[prev_i], tour[next_end]] + dist[tour[j], tour[i]] + dist[tour[segment_end], tour[next_j]]
+                    old_j_cost = dist[tour[j], tour[next_j]]
+
+                    delta = new_cost - current_cost - old_j_cost
+
+                    if delta < -1e-9:
+                        # Perform the move
+                        if segment_len == 1:
+                            # Move single city
+                            city = tour[i]
+                            tour.pop(i)
+                            insert_pos = j if j < i else j
+                            tour.insert(insert_pos + 1, city)
                         else:
-                            # Handle wraparound
-                            seg = tour[j+1:] + tour[:k+1]
-                            seg = seg[::-1]
-                            tour = seg[-(k+1):] + tour[k+1:j+1] + seg[:len(seg)-(k+1)]
+                            # Move segment
+                            segment = tour[i:i + segment_len]
+                            # Remove segment
+                            tour = tour[:i] + tour[i + segment_len:]
+                            # Insert at new position
+                            insert_pos = j if j < i else j - segment_len
+                            tour = tour[:insert_pos + 1] + segment + tour[insert_pos + 1:]
+
                         improved = True
                         break
 

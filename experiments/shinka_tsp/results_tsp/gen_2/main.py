@@ -49,8 +49,8 @@ def solve_tsp(coords: np.ndarray, time_limit_ms: int = 5000) -> tuple:
         # Phase 1: Christofides-inspired construction
         tour = christofides_construction(dist, n, start_city)
 
-        # Phase 2: 3-opt improvement
-        tour = three_opt_improvement(tour, dist, n, start_deadline)
+        # Phase 2: Or-opt improvement
+        tour = or_opt_improvement(tour, dist, n, start_deadline)
 
         # Calculate tour length
         length = sum(dist[tour[i], tour[(i + 1) % n]] for i in range(n))
@@ -131,95 +131,98 @@ def eulerian_to_hamiltonian(adj, n, start):
     return tour
 
 
-def two_opt_improvement(tour, dist, n, deadline):
-    """2-opt local search improvement."""
-    tour = tour[:]
-    improved = True
-
-    while improved and time.perf_counter() < deadline:
-        improved = False
-        for i in range(n - 1):
-            if time.perf_counter() >= deadline:
-                break
-            for j in range(i + 2, n):
-                if j == i + 1:
-                    continue
-
-                # Calculate delta
-                a, b = tour[i], tour[i + 1]
-                c, d = tour[j], tour[(j + 1) % n]
-                delta = (dist[a, c] + dist[b, d]) - (dist[a, b] + dist[c, d])
-
-                if delta < -1e-9:
-                    tour[i+1:j+1] = tour[i+1:j+1][::-1]
-                    improved = True
-
-    return tour
-
-
-def three_opt_improvement(tour, dist, n, deadline):
-    """3-opt local search improvement."""
+def or_opt_improvement(tour, dist, n, deadline):
+    """Or-opt local search improvement - relocate sequences of 1-3 cities."""
     tour = tour[:]
     improved = True
 
     while improved and time.perf_counter() < deadline:
         improved = False
 
-        for i in range(n):
-            if time.perf_counter() >= deadline:
+        # Try relocating sequences of length 1, 2, and 3
+        for seq_len in [1, 2, 3]:
+            if improved or time.perf_counter() >= deadline:
                 break
 
-            for j in range(i + 2, n):
+            for i in range(n):
                 if time.perf_counter() >= deadline:
                     break
 
-                for k in range(j + 2, n + (1 if i == 0 else 0)):
-                    if i == 0 and k >= n:
-                        k = k % n
-                    if k == i:
-                        continue
+                # Don't try sequences that would wrap around or be too long
+                if i + seq_len > n:
+                    continue
 
-                    # Current edges to remove
-                    a, b = tour[i], tour[(i + 1) % n]
-                    c, d = tour[j], tour[(j + 1) % n]
-                    e, f = tour[k], tour[(k + 1) % n]
+                # Try inserting the sequence at each possible position
+                for j in range(n):
+                    if j >= i and j < i + seq_len:
+                        continue  # Skip positions within the sequence
 
-                    current_cost = dist[a, b] + dist[c, d] + dist[e, f]
+                    # Calculate improvement for moving sequence starting at i to position j
+                    delta = calculate_or_opt_delta(tour, dist, n, i, seq_len, j)
 
-                    # Try 2-opt style moves first (subset of 3-opt)
-                    # Case 1: reconnect a-c, b-d (reverse middle segment)
-                    new_cost1 = dist[a, c] + dist[b, d] + dist[e, f]
-
-                    # Case 2: reconnect c-e, d-f (reverse last segment)
-                    new_cost2 = dist[a, b] + dist[c, e] + dist[d, f]
-
-                    if new_cost1 < current_cost - 1e-9:
-                        # Reverse segment between i+1 and j
-                        if i < j:
-                            tour[i+1:j+1] = tour[i+1:j+1][::-1]
-                        else:
-                            # Handle wraparound
-                            tour = tour[j+1:i+1] + tour[:j+1][::-1] + tour[i+1:]
-                        improved = True
-                        break
-                    elif new_cost2 < current_cost - 1e-9:
-                        # Reverse segment between j+1 and k
-                        if j < k:
-                            tour[j+1:k+1] = tour[j+1:k+1][::-1]
-                        else:
-                            # Handle wraparound
-                            seg = tour[j+1:] + tour[:k+1]
-                            seg = seg[::-1]
-                            tour = seg[-(k+1):] + tour[k+1:j+1] + seg[:len(seg)-(k+1)]
+                    if delta < -1e-9:
+                        # Apply the move
+                        apply_or_opt_move(tour, i, seq_len, j)
                         improved = True
                         break
 
                 if improved:
                     break
-            if improved:
-                break
 
     return tour
+
+
+def calculate_or_opt_delta(tour, dist, n, start, seq_len, insert_pos):
+    """Calculate the change in tour length for an Or-opt move."""
+    # Positions in the tour
+    prev_start = (start - 1) % n
+    end = (start + seq_len - 1) % n
+    next_end = (end + 1) % n
+
+    # Current cost: edges around the sequence
+    current_cost = dist[tour[prev_start], tour[start]] + dist[tour[end], tour[next_end]]
+
+    # Cost after removing sequence
+    removal_cost = dist[tour[prev_start], tour[next_end]]
+
+    # Calculate insertion cost
+    if insert_pos < start:
+        # Insert before the original position
+        prev_insert = (insert_pos - 1) % n
+        insertion_cost = (dist[tour[prev_insert], tour[start]] +
+                         dist[tour[end], tour[insert_pos]])
+        new_cost = current_cost - removal_cost + insertion_cost
+    else:
+        # Insert after the original position (adjust for removal)
+        actual_insert = insert_pos - seq_len
+        if actual_insert < 0:
+            actual_insert = 0
+        prev_insert = (actual_insert - 1) % n
+        next_insert = actual_insert % n
+        insertion_cost = (dist[tour[prev_insert], tour[start]] +
+                         dist[tour[end], tour[next_insert]])
+        new_cost = current_cost - removal_cost + insertion_cost
+
+    return new_cost - current_cost
+
+
+def apply_or_opt_move(tour, start, seq_len, insert_pos):
+    """Apply an Or-opt move to the tour."""
+    n = len(tour)
+    sequence = tour[start:start + seq_len]
+
+    if insert_pos < start:
+        # Insert before original position
+        new_tour = (tour[:insert_pos] + sequence +
+                   tour[insert_pos:start] + tour[start + seq_len:])
+    else:
+        # Insert after original position
+        actual_insert = insert_pos - seq_len
+        new_tour = (tour[:start] + tour[start + seq_len:actual_insert] +
+                   sequence + tour[actual_insert:])
+
+    tour[:] = new_tour
+=======
 
 
 # EVOLVE-BLOCK-END

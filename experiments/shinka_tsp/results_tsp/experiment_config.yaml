@@ -95,4 +95,4 @@ job_config:
   extra_cmd_args: {}
   time: 00:02:00
 results_directory: results_tsp
-timestamp: '2026-01-13T22:18:59.855493'
+timestamp: '2026-01-13T22:45:14.287803'
