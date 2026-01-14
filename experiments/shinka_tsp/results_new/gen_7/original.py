@@ -1,0 +1,262 @@
+# EVOLVE-BLOCK-START
+"""
+TSP Solver: Multi-start Nearest Neighbor + 2-opt + Or-opt Local Search
+
+This solver constructs tours using nearest neighbor from multiple starting cities,
+then improves using alternating 2-opt and Or-opt moves.
+"""
+
+import numpy as np
+import time
+
+
+def solve_tsp(coords: np.ndarray, time_limit_ms: int = 5000) -> tuple:
+    """
+    Solve TSP instance.
+
+    Args:
+        coords: np.ndarray of shape (n, 2) with city coordinates
+        time_limit_ms: Wall-clock time limit in milliseconds
+
+    Returns:
+        Tuple of (tour, length) where tour is list of city indices
+    """
+    n = len(coords)
+
+    if n <= 1:
+        return list(range(n)), 0.0
+
+    if n == 2:
+        return [0, 1], round(np.sqrt(np.sum((coords[0] - coords[1]) ** 2))) * 2
+
+    # Compute distance matrix using vectorized operations
+    diff = coords[:, np.newaxis, :] - coords[np.newaxis, :, :]
+    dist = np.round(np.sqrt(np.sum(diff ** 2, axis=2)))
+
+    start_time = time.perf_counter()
+    deadline = start_time + time_limit_ms / 1000.0
+
+    def calc_tour_length(tour):
+        return sum(dist[tour[i], tour[(i + 1) % n]] for i in range(n))
+
+    def nearest_neighbor(start_city):
+        """Construct tour using nearest neighbor from given start city."""
+        visited = np.zeros(n, dtype=bool)
+        tour = np.zeros(n, dtype=int)
+        current = start_city
+        tour[0] = current
+        visited[current] = True
+
+        for step in range(1, n):
+            # Use numpy for faster min finding
+            dists = dist[current].copy()
+            dists[visited] = np.inf
+            best_next = np.argmin(dists)
+            tour[step] = best_next
+            visited[best_next] = True
+            current = best_next
+        return tour
+
+    def two_opt_pass(tour):
+        """Single pass of 2-opt, returns improved tour and whether improvement was made."""
+        improved = False
+        for i in range(n - 1):
+            if time.perf_counter() >= deadline:
+                break
+            for j in range(i + 2, n):
+                if j == n - 1 and i == 0:
+                    continue  # Skip if it would just reverse the whole tour
+
+                a, b = tour[i], tour[i + 1]
+                c, d = tour[j], tour[(j + 1) % n]
+                delta = (dist[a, c] + dist[b, d]) - (dist[a, b] + dist[c, d])
+
+                if delta < -0.5:
+                    tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                    improved = True
+        return tour, improved
+
+    def relocate_pass(tour):
+        """Relocate: try moving single cities to better positions."""
+        improved = False
+        for i in range(n):
+            if time.perf_counter() >= deadline:
+                return tour, improved
+
+            # City to relocate
+            prev_i = (i - 1) % n
+            next_i = (i + 1) % n
+
+            city = tour[i]
+            city_prev = tour[prev_i]
+            city_next = tour[next_i]
+
+            # Cost of removing city from current position
+            removal_gain = (dist[city_prev, city] + dist[city, city_next]
+                           - dist[city_prev, city_next])
+
+            # Try inserting between other edges
+            best_delta = 0
+            best_j = -1
+
+            for j in range(n):
+                if j == prev_i or j == i:
+                    continue
+
+                j_next = (j + 1) % n
+                if j_next == i:
+                    continue
+
+                city_j = tour[j]
+                city_j_next = tour[j_next]
+
+                # Cost of inserting city between j and j+1
+                insertion_cost = (dist[city_j, city] + dist[city, city_j_next]
+                                 - dist[city_j, city_j_next])
+
+                delta = insertion_cost - removal_gain
+
+                if delta < best_delta - 0.5:
+                    best_delta = delta
+                    best_j = j
+
+            if best_j >= 0:
+                # Perform the move
+                tour_list = tour.tolist()
+                city = tour_list.pop(i)
+
+                # Adjust insertion index if needed
+                insert_pos = best_j + 1 if best_j < i else best_j
+                tour_list.insert(insert_pos, city)
+
+                tour = np.array(tour_list, dtype=int)
+                improved = True
+
+        return tour, improved
+
+    def three_opt_segment(tour):
+        """Limited 3-opt: try double-bridge moves for diversification."""
+        if n < 8:
+            return tour, False
+
+        best_tour = tour.copy()
+        best_length = calc_tour_length(tour)
+        improved = False
+
+        # Try a few random double-bridge moves
+        for _ in range(min(20, n)):
+            if time.perf_counter() >= deadline:
+                break
+
+            # Select 4 random positions
+            positions = sorted(np.random.choice(n, 4, replace=False))
+            p1, p2, p3, p4 = positions
+
+            # Double bridge: reconnect segments differently
+            new_tour = np.concatenate([
+                tour[:p1+1],
+                tour[p3+1:p4+1],
+                tour[p2+1:p3+1],
+                tour[p1+1:p2+1],
+                tour[p4+1:]
+            ])
+
+            if len(new_tour) == n:
+                new_length = calc_tour_length(new_tour)
+                if new_length < best_length - 0.5:
+                    best_tour = new_tour
+                    best_length = new_length
+                    improved = True
+
+        return best_tour, improved
+
+    # Phase 1: Multi-start nearest neighbor construction
+    # Try multiple starting cities and keep the best
+    num_starts = min(n, max(5, n // 10))
+    if n <= 20:
+        start_cities = list(range(n))
+    else:
+        start_cities = [0] + list(np.random.choice(range(1, n), num_starts - 1, replace=False))
+
+    best_tour = None
+    best_length = np.inf
+
+    construction_deadline = start_time + (time_limit_ms / 1000.0) * 0.1  # Use 10% for construction
+
+    for start_city in start_cities:
+        if time.perf_counter() >= construction_deadline:
+            break
+        tour = nearest_neighbor(start_city)
+        length = calc_tour_length(tour)
+        if length < best_length:
+            best_length = length
+            best_tour = tour.copy()
+
+    tour = best_tour
+
+    # Phase 2: Alternating 2-opt, relocate, and occasional 3-opt
+    overall_improved = True
+    iteration = 0
+    while overall_improved and time.perf_counter() < deadline:
+        overall_improved = False
+        iteration += 1
+
+        # 2-opt until no improvement
+        two_opt_improved = True
+        while two_opt_improved and time.perf_counter() < deadline:
+            tour, two_opt_improved = two_opt_pass(tour)
+            if two_opt_improved:
+                overall_improved = True
+
+        # Relocate pass
+        if time.perf_counter() < deadline:
+            tour, relocate_improved = relocate_pass(tour)
+            if relocate_improved:
+                overall_improved = True
+
+        # Occasional 3-opt/double-bridge for diversification
+        if iteration % 3 == 0 and time.perf_counter() < deadline:
+            tour, three_opt_improved = three_opt_segment(tour)
+            if three_opt_improved:
+                overall_improved = True
+
+    # Calculate final tour length
+    length = calc_tour_length(tour)
+
+    return tour.tolist(), length
+
+
+# EVOLVE-BLOCK-END
+
+
+def run_experiment(coords: np.ndarray, time_limit_ms: int = 5000, optimal_length: float = None) -> dict:
+    """
+    Entry point for ShinkaEvolve evaluation.
+
+    Args:
+        coords: np.ndarray of shape (n, 2) with city coordinates
+        time_limit_ms: Wall-clock time limit in milliseconds
+        optimal_length: Known optimal tour length (if available)
+
+    Returns:
+        dict with tour, length, valid, and score
+    """
+    tour, length = solve_tsp(coords, time_limit_ms)
+
+    # Validate tour
+    n = len(coords)
+    valid = (len(tour) == n and set(tour) == set(range(n)))
+
+    # Score: ratio of optimal to found (higher is better, max 1.0)
+    if optimal_length and optimal_length > 0:
+        score = optimal_length / length if length > 0 else 0.0
+    else:
+        # If no optimal, use inverse of length (normalized)
+        score = 1000.0 / length if length > 0 else 0.0
+
+    return {
+        'tour': tour,
+        'length': length,
+        'valid': valid,
+        'score': score
+    }

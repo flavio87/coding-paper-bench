@@ -1,0 +1,98 @@
+database_config:
+  archive_size: 30
+  db_path: results_new/evolution_db.sqlite
+  elite_selection_ratio: 0.3
+  embedding_model: text-embedding-3-small
+  enforce_island_separation: true
+  exploitation_alpha: 1.0
+  exploitation_ratio: 0.2
+  island_elitism: true
+  migration_interval: 5
+  migration_rate: 0.15
+  num_archive_inspirations: 3
+  num_beams: 5
+  num_islands: 2
+  num_top_k_inspirations: 2
+  parent_selection_lambda: 10.0
+  parent_selection_strategy: weighted
+evolution_config:
+  code_embed_sim_threshold: 1.0
+  embedding_model: null
+  init_program_path: initial.py
+  job_type: local
+  language: python
+  llm_dynamic_selection: null
+  llm_dynamic_selection_kwargs: {}
+  llm_kwargs:
+    max_tokens: 8192
+    temperatures:
+    - 0.3
+    - 0.7
+    - 1.0
+  llm_models:
+  - openrouter/anthropic/claude-opus-4.5
+  max_novelty_attempts: 3
+  max_parallel_jobs: 2
+  max_patch_attempts: 3
+  max_patch_resamples: 2
+  meta_llm_kwargs: {}
+  meta_llm_models: null
+  meta_max_recommendations: 5
+  meta_rec_interval: null
+  novelty_llm_kwargs: {}
+  novelty_llm_models: null
+  num_generations: 10
+  patch_type_probs:
+  - 0.7
+  - 0.3
+  patch_types:
+  - diff
+  - full
+  results_dir: results_new
+  task_sys_msg: 'You are an expert algorithm engineer specializing in combinatorial
+    optimization and the Traveling Salesman Problem (TSP).
+
+
+    The current solver uses Nearest Neighbor construction + 2-opt local search. Your
+    goal is to improve it.
+
+
+    Key directions to explore:
+
+    1. **Better construction heuristics**: Christofides, insertion heuristics, savings
+    algorithm
+
+    2. **Improved local search**: 3-opt, Or-opt (relocate segments of 1-3 cities),
+    Lin-Kernighan moves
+
+    3. **Meta-heuristics**: Simulated annealing, genetic algorithms, tabu search
+
+    4. **Speed optimizations**: Don''t-look bits, neighbor lists, incremental distance
+    updates
+
+    5. **Multi-start strategies**: Try different starting cities, combine multiple
+    solutions
+
+    6. **Hybrid approaches**: Combine construction with aggressive local search
+
+
+    Important constraints:
+
+    - Keep the same interface: solve_tsp(coords, time_limit_ms) -> (tour, length)
+
+    - Stay within the time limit
+
+    - The tour must visit all cities exactly once
+
+    - Minimize total tour length (lower is better)
+
+
+    Be creative and try different algorithmic improvements!'
+  use_text_feedback: false
+job_config:
+  conda_env: null
+  eval_program_path: evaluate.py
+  extra_cmd_args: {}
+  time: 00:02:00
+results_directory: results_new
+timestamp: '2026-01-14T08:56:47.898300'

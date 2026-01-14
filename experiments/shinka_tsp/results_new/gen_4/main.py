@@ -1,0 +1,257 @@
+# EVOLVE-BLOCK-START
+"""
+TSP Solver: Multi-start with Lin-Kernighan style moves
+
+Uses multiple construction heuristics and advanced local search
+including 2-opt, 3-opt, and Or-opt moves.
+"""
+
+import numpy as np
+import time
+
+
+def solve_tsp(coords: np.ndarray, time_limit_ms: int = 5000) -> tuple:
+    """
+    Solve TSP instance.
+
+    Args:
+        coords: np.ndarray of shape (n, 2) with city coordinates
+        time_limit_ms: Wall-clock time limit in milliseconds
+
+    Returns:
+        Tuple of (tour, length) where tour is list of city indices
+    """
+    n = len(coords)
+    
+    if n <= 1:
+        return list(range(n)), 0.0
+    
+    if n == 2:
+        return [0, 1], round(np.sqrt(np.sum((coords[0] - coords[1]) ** 2))) * 2
+
+    # Compute distance matrix
+    diff = coords[:, np.newaxis, :] - coords[np.newaxis, :, :]
+    dist = np.round(np.sqrt(np.sum(diff ** 2, axis=2))).astype(np.float64)
+
+    start_time = time.perf_counter()
+    deadline = start_time + time_limit_ms / 1000.0
+
+    # Precompute nearest neighbors for each city (for candidate lists)
+    k_nearest = min(20, n - 1)
+    nearest = np.argsort(dist, axis=1)[:, 1:k_nearest+1]
+
+    def tour_length(tour):
+        return sum(dist[tour[i], tour[(i + 1) % n]] for i in range(n))
+
+    def nearest_neighbor(start):
+        visited = np.zeros(n, dtype=bool)
+        tour = np.zeros(n, dtype=int)
+        current = start
+        tour[0] = current
+        visited[current] = True
+        
+        for step in range(1, n):
+            best_next = -1
+            best_dist = np.inf
+            for j in range(n):
+                if not visited[j] and dist[current, j] < best_dist:
+                    best_dist = dist[current, j]
+                    best_next = j
+            tour[step] = best_next
+            visited[best_next] = True
+            current = best_next
+        return tour
+
+    def two_opt(tour):
+        improved = True
+        while improved and time.perf_counter() < deadline:
+            improved = False
+            for i in range(n - 1):
+                if time.perf_counter() >= deadline:
+                    break
+                a = tour[i]
+                b = tour[i + 1]
+                for j in range(i + 2, n):
+                    if j == n - 1 and i == 0:
+                        continue
+                    c = tour[j]
+                    d = tour[(j + 1) % n]
+                    delta = (dist[a, c] + dist[b, d]) - (dist[a, b] + dist[c, d])
+                    if delta < -0.5:
+                        tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                        improved = True
+        return tour
+
+    def or_opt(tour):
+        """Or-opt: relocate segments of 1, 2, or 3 consecutive cities"""
+        improved = True
+        while improved and time.perf_counter() < deadline:
+            improved = False
+            for seg_len in [1, 2, 3]:
+                if improved or time.perf_counter() >= deadline:
+                    break
+                for i in range(n):
+                    if time.perf_counter() >= deadline:
+                        break
+                    # Segment from i to i+seg_len-1
+                    if i + seg_len > n:
+                        continue
+                    
+                    prev_i = (i - 1) % n
+                    next_seg = (i + seg_len) % n
+                    
+                    # Cost of removing segment
+                    remove_cost = (dist[tour[prev_i], tour[i]] + 
+                                   dist[tour[(i + seg_len - 1) % n], tour[next_seg]])
+                    reconnect_cost = dist[tour[prev_i], tour[next_seg]]
+                    
+                    for j in range(n):
+                        if j >= i - 1 and j <= i + seg_len:
+                            continue
+                        
+                        next_j = (j + 1) % n
+                        
+                        # Cost of inserting segment between j and next_j
+                        insert_cost = (dist[tour[j], tour[i]] + 
+                                      dist[tour[(i + seg_len - 1) % n], tour[next_j]])
+                        break_cost = dist[tour[j], tour[next_j]]
+                        
+                        delta = (reconnect_cost + insert_cost) - (remove_cost + break_cost)
+                        
+                        if delta < -0.5:
+                            # Perform the move
+                            segment = tour[i:i+seg_len].copy()
+                            new_tour = np.concatenate([
+                                tour[:i], tour[i+seg_len:]
+                            ])
+                            # Find new position of j
+                            if j > i + seg_len - 1:
+                                new_j = j - seg_len
+                            else:
+                                new_j = j
+                            new_tour = np.concatenate([
+                                new_tour[:new_j+1], segment, new_tour[new_j+1:]
+                            ])
+                            tour[:] = new_tour
+                            improved = True
+                            break
+                    if improved:
+                        break
+                if improved:
+                    break
+        return tour
+
+    def three_opt_limited(tour):
+        """Limited 3-opt using candidate lists"""
+        improved = True
+        iterations = 0
+        max_iterations = 3
+        while improved and iterations < max_iterations and time.perf_counter() < deadline:
+            improved = False
+            iterations += 1
+            for i in range(n - 2):
+                if time.perf_counter() >= deadline or improved:
+                    break
+                for j in range(i + 2, min(i + 15, n - 1)):
+                    if time.perf_counter() >= deadline or improved:
+                        break
+                    for k in range(j + 2, min(j + 15, n)):
+                        if k == n - 1 and i == 0:
+                            continue
+                        
+                        a, b = tour[i], tour[i + 1]
+                        c, d = tour[j], tour[j + 1]
+                        e, f = tour[k], tour[(k + 1) % n]
+                        
+                        # Current cost
+                        d0 = dist[a, b] + dist[c, d] + dist[e, f]
+                        
+                        # Try different reconnections
+                        # Reconnection 1: a-c, b-e, d-f
+                        d1 = dist[a, c] + dist[b, e] + dist[d, f]
+                        if d1 < d0 - 0.5:
+                            # Reverse segment [i+1, j] and [j+1, k]
+                            tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                            tour[j+1:k+1] = tour[j+1:k+1][::-1]
+                            improved = True
+                            break
+        return tour
+
+    # Multi-start strategy
+    best_tour = None
+    best_length = np.inf
+    
+    # Try different starting cities for nearest neighbor
+    num_starts = min(n, max(5, n // 10))
+    start_cities = np.random.choice(n, num_starts, replace=False) if n > num_starts else np.arange(n)
+    
+    for start in start_cities:
+        if time.perf_counter() >= deadline:
+            break
+        
+        tour = nearest_neighbor(start)
+        tour = two_opt(tour)
+        
+        length = tour_length(tour)
+        if length < best_length:
+            best_length = length
+            best_tour = tour.copy()
+    
+    # Apply Or-opt to best tour
+    if time.perf_counter() < deadline and best_tour is not None:
+        best_tour = or_opt(best_tour)
+        best_tour = two_opt(best_tour)
+        best_length = tour_length(best_tour)
+    
+    # Apply limited 3-opt
+    if time.perf_counter() < deadline and best_tour is not None:
+        best_tour = three_opt_limited(best_tour)
+        best_tour = two_opt(best_tour)
+        best_length = tour_length(best_tour)
+    
+    # Final refinement loop
+    while time.perf_counter() < deadline:
+        old_length = best_length
+        best_tour = or_opt(best_tour)
+        best_tour = two_opt(best_tour)
+        best_length = tour_length(best_tour)
+        if best_length >= old_length - 0.5:
+            break
+
+    return best_tour.tolist(), best_length
+
+
+# EVOLVE-BLOCK-END
+
+
+def run_experiment(coords: np.ndarray, time_limit_ms: int = 5000, optimal_length: float = None) -> dict:
+    """
+    Entry point for ShinkaEvolve evaluation.
+
+    Args:
+        coords: np.ndarray of shape (n, 2) with city coordinates
+        time_limit_ms: Wall-clock time limit in milliseconds
+        optimal_length: Known optimal tour length (if available)
+
+    Returns:
+        dict with tour, length, valid, and score
+    """
+    tour, length = solve_tsp(coords, time_limit_ms)
+
+    # Validate tour
+    n = len(coords)
+    valid = (len(tour) == n and set(tour) == set(range(n)))
+
+    # Score: ratio of optimal to found (higher is better, max 1.0)
+    if optimal_length and optimal_length > 0:
+        score = optimal_length / length if length > 0 else 0.0
+    else:
+        # If no optimal, use inverse of length (normalized)
+        score = 1000.0 / length if length > 0 else 0.0
+
+    return {
+        'tour': tour,
+        'length': length,
+        'valid': valid,
+        'score': score
+    }

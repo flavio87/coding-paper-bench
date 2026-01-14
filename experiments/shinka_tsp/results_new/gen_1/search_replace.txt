@@ -1,0 +1,309 @@
+Looking at the current implementation, I can see several opportunities for improvement:
+
+1. **Multi-start nearest neighbor**: The current implementation only starts from city 0, but different starting cities can produce significantly different tours
+2. **Faster 2-opt with neighbor lists**: We can precompute nearest neighbors to focus on more promising swaps
+3. **Or-opt moves**: Moving segments of 1-3 cities can escape local optima that 2-opt cannot
+
+Let me propose a significant improvement that combines these ideas:
+
+<NAME>
+multistart_oropt_improved
+</NAME>
+
+<DESCRIPTION>
+This improvement adds:
+1. Multi-start nearest neighbor construction - try multiple starting cities and keep the best initial tour
+2. Or-opt local search - moves segments of 1-3 consecutive cities to other positions, which can escape 2-opt local optima
+3. Better 2-opt implementation with early termination tracking
+4. Alternating between 2-opt and Or-opt until no improvement is found
+
+The key insight is that:
+- Different starting cities in nearest neighbor can give tours that differ by 10-20%
+- Or-opt moves are complementary to 2-opt and can find improvements 2-opt misses
+- Combining these within the time budget should significantly improve tour quality
+</DESCRIPTION>
+
+<DIFF>
+<<<<<<< SEARCH
+"""
+TSP Solver: Nearest Neighbor + 2-opt Local Search
+
+This solver constructs a tour using nearest neighbor heuristic,
+then improves it using 2-opt edge swaps.
+"""
+
+import numpy as np
+import time
+
+
+def solve_tsp(coords: np.ndarray, time_limit_ms: int = 5000) -> tuple:
+    """
+    Solve TSP instance.
+
+    Args:
+        coords: np.ndarray of shape (n, 2) with city coordinates
+        time_limit_ms: Wall-clock time limit in milliseconds
+
+    Returns:
+        Tuple of (tour, length) where tour is list of city indices
+    """
+    n = len(coords)
+
+    # Compute distance matrix
+    dist = np.zeros((n, n))
+    for i in range(n):
+        for j in range(i + 1, n):
+            d = np.sqrt(np.sum((coords[i] - coords[j]) ** 2))
+            dist[i, j] = dist[j, i] = round(d)
+
+    start_time = time.perf_counter()
+    deadline = start_time + time_limit_ms / 1000.0
+
+    # Phase 1: Nearest neighbor construction
+    visited = np.zeros(n, dtype=bool)
+    tour = np.zeros(n, dtype=int)
+
+    current = 0  # Start from city 0
+    tour[0] = current
+    visited[current] = True
+
+    for step in range(1, n):
+        best_next = -1
+        best_dist = np.inf
+        for j in range(n):
+            if not visited[j] and dist[current, j] < best_dist:
+                best_dist = dist[current, j]
+                best_next = j
+        tour[step] = best_next
+        visited[best_next] = True
+        current = best_next
+
+    # Phase 2: 2-opt improvement
+    improved = True
+    while improved and time.perf_counter() < deadline:
+        improved = False
+        for i in range(n - 1):
+            if time.perf_counter() >= deadline:
+                break
+            for j in range(i + 2, n):
+                if j == i + 1:
+                    continue
+
+                # Calculate delta
+                a, b = tour[i], tour[i + 1]
+                c, d = tour[j], tour[(j + 1) % n]
+                delta = (dist[a, c] + dist[b, d]) - (dist[a, b] + dist[c, d])
+
+                if delta < -1e-9:
+                    tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                    improved = True
+
+    # Calculate tour length
+    length = sum(dist[tour[i], tour[(i + 1) % n]] for i in range(n))
+
+    return tour.tolist(), length
+=======
+"""
+TSP Solver: Multi-start Nearest Neighbor + 2-opt + Or-opt Local Search
+
+This solver constructs tours using nearest neighbor from multiple starting cities,
+then improves using alternating 2-opt and Or-opt moves.
+"""
+
+import numpy as np
+import time
+
+
+def solve_tsp(coords: np.ndarray, time_limit_ms: int = 5000) -> tuple:
+    """
+    Solve TSP instance.
+
+    Args:
+        coords: np.ndarray of shape (n, 2) with city coordinates
+        time_limit_ms: Wall-clock time limit in milliseconds
+
+    Returns:
+        Tuple of (tour, length) where tour is list of city indices
+    """
+    n = len(coords)
+
+    if n <= 1:
+        return list(range(n)), 0.0
+
+    if n == 2:
+        return [0, 1], round(np.sqrt(np.sum((coords[0] - coords[1]) ** 2))) * 2
+
+    # Compute distance matrix using vectorized operations
+    diff = coords[:, np.newaxis, :] - coords[np.newaxis, :, :]
+    dist = np.round(np.sqrt(np.sum(diff ** 2, axis=2)))
+
+    start_time = time.perf_counter()
+    deadline = start_time + time_limit_ms / 1000.0
+
+    def calc_tour_length(tour):
+        return sum(dist[tour[i], tour[(i + 1) % n]] for i in range(n))
+
+    def nearest_neighbor(start_city):
+        """Construct tour using nearest neighbor from given start city."""
+        visited = np.zeros(n, dtype=bool)
+        tour = np.zeros(n, dtype=int)
+        current = start_city
+        tour[0] = current
+        visited[current] = True
+
+        for step in range(1, n):
+            # Use numpy for faster min finding
+            dists = dist[current].copy()
+            dists[visited] = np.inf
+            best_next = np.argmin(dists)
+            tour[step] = best_next
+            visited[best_next] = True
+            current = best_next
+        return tour
+
+    def two_opt_pass(tour):
+        """Single pass of 2-opt, returns improved tour and whether improvement was made."""
+        improved = False
+        for i in range(n - 1):
+            if time.perf_counter() >= deadline:
+                break
+            for j in range(i + 2, n):
+                if j == n - 1 and i == 0:
+                    continue  # Skip if it would just reverse the whole tour
+
+                a, b = tour[i], tour[i + 1]
+                c, d = tour[j], tour[(j + 1) % n]
+                delta = (dist[a, c] + dist[b, d]) - (dist[a, b] + dist[c, d])
+
+                if delta < -0.5:
+                    tour[i+1:j+1] = tour[i+1:j+1][::-1]
+                    improved = True
+        return tour, improved
+
+    def or_opt_pass(tour):
+        """Or-opt: try moving segments of 1-3 cities to other positions."""
+        improved = False
+        for seg_len in [1, 2, 3]:
+            if seg_len > n - 2:
+                continue
+            for i in range(n):
+                if time.perf_counter() >= deadline:
+                    return tour, improved
+
+                # Segment from i to i+seg_len-1
+                i_end = (i + seg_len - 1) % n
+                prev_i = (i - 1) % n
+                next_end = (i_end + 1) % n
+
+                # Current cost of segment edges
+                seg_start = tour[i]
+                seg_end = tour[i_end]
+                before_seg = tour[prev_i]
+                after_seg = tour[next_end]
+
+                old_cost = dist[before_seg, seg_start] + dist[seg_end, after_seg]
+                reconnect_cost = dist[before_seg, after_seg]
+
+                # Try inserting segment at different positions
+                for j in range(n):
+                    if time.perf_counter() >= deadline:
+                        return tour, improved
+
+                    # Skip positions that overlap with current segment
+                    skip = False
+                    for k in range(seg_len + 1):
+                        if j == (i + k) % n or j == (i - 1) % n:
+                            skip = True
+                            break
+                    if skip:
+                        continue
+
+                    j_next = (j + 1) % n
+                    city_j = tour[j]
+                    city_j_next = tour[j_next]
+
+                    # Cost of inserting segment between j and j+1
+                    new_insert_cost = dist[city_j, seg_start] + dist[seg_end, city_j_next]
+                    old_edge_cost = dist[city_j, city_j_next]
+
+                    delta = (reconnect_cost + new_insert_cost) - (old_cost + old_edge_cost)
+
+                    if delta < -0.5:
+                        # Perform the move
+                        tour_list = tour.tolist()
+
+                        # Extract segment
+                        if i <= i_end:
+                            segment = tour_list[i:i_end+1]
+                            remaining = tour_list[:i] + tour_list[i_end+1:]
+                        else:
+                            segment = tour_list[i:] + tour_list[:i_end+1]
+                            remaining = tour_list[i_end+1:i]
+
+                        # Find new position of j in remaining
+                        try:
+                            new_j = remaining.index(city_j)
+                        except ValueError:
+                            continue
+
+                        # Insert segment after new_j
+                        new_tour = remaining[:new_j+1] + segment + remaining[new_j+1:]
+
+                        if len(new_tour) == n and len(set(new_tour)) == n:
+                            tour = np.array(new_tour, dtype=int)
+                            improved = True
+                            break
+                if improved:
+                    break
+            if improved:
+                break
+        return tour, improved
+
+    # Phase 1: Multi-start nearest neighbor construction
+    # Try multiple starting cities and keep the best
+    num_starts = min(n, max(5, n // 10))
+    if n <= 20:
+        start_cities = list(range(n))
+    else:
+        start_cities = [0] + list(np.random.choice(range(1, n), num_starts - 1, replace=False))
+
+    best_tour = None
+    best_length = np.inf
+
+    construction_deadline = start_time + (time_limit_ms / 1000.0) * 0.1  # Use 10% for construction
+
+    for start_city in start_cities:
+        if time.perf_counter() >= construction_deadline:
+            break
+        tour = nearest_neighbor(start_city)
+        length = calc_tour_length(tour)
+        if length < best_length:
+            best_length = length
+            best_tour = tour.copy()
+
+    tour = best_tour
+
+    # Phase 2: Alternating 2-opt and Or-opt improvement
+    overall_improved = True
+    while overall_improved and time.perf_counter() < deadline:
+        overall_improved = False
+
+        # 2-opt until no improvement
+        two_opt_improved = True
+        while two_opt_improved and time.perf_counter() < deadline:
+            tour, two_opt_improved = two_opt_pass(tour)
+            if two_opt_improved:
+                overall_improved = True
+
+        # Or-opt until no improvement
+        if time.perf_counter() < deadline:
+            tour, or_opt_improved = or_opt_pass(tour)
+            if or_opt_improved:
+                overall_improved = True
+
+    # Calculate final tour length
+    length = calc_tour_length(tour)
+
+    return tour.tolist(), length
+>>>>>>> REPLACE
+</DIFF>

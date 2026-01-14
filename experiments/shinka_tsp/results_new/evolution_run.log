@@ -1,0 +1,252 @@
+2026-01-14 08:56:47 - shinka.core.runner - INFO - ================================================================================
+2026-01-14 08:56:47 - shinka.core.runner - INFO - Evolution run started at 2026-01-14 08:56:47
+2026-01-14 08:56:47 - shinka.core.runner - INFO - Results directory: results_new
+2026-01-14 08:56:47 - shinka.core.runner - INFO - Log file: results_new/evolution_run.log
+2026-01-14 08:56:47 - shinka.core.runner - INFO - ================================================================================
+2026-01-14 08:56:47 - shinka.core.runner - INFO - Experiment configuration saved to results_new/experiment_config.yaml
+2026-01-14 08:56:47 - shinka.core.runner - INFO - Starting evolution with 2 parallel jobs, target: 10 generations
+2026-01-14 08:56:47 - shinka.core.runner - INFO - Running generation 0 sequentially to initialize database...
+2026-01-14 08:56:47 - shinka.core.runner - INFO - Copying initial program from initial.py
+2026-01-14 08:56:47 - shinka.launch.local - INFO - Submitted local process with PID: 3385525
+2026-01-14 08:56:47 - shinka.launch.local - INFO - Launched local command: python evaluate.py --program_path results_new/gen_0/main.py --results_dir results_new/gen_0/results
+2026-01-14 08:56:57 - shinka.database.dbase - INFO - Program a7982a41-3402-4dd6-8738-13e62cbf7e49 added to DB - score: 0.18080472862682484.
+2026-01-14 08:56:57 - shinka.database.dbase - INFO - New best program: a7982a41-3402-4dd6-8738-13e62cbf7e49 (gen: 0, score: 0.1808, initialized island: 0).
+2026-01-14 08:56:57 - shinka.database.dbase - INFO - Not enough programs with embeddings (0) to perform clustering. Need at least 4.
+2026-01-14 08:56:57 - shinka.database.dbase - INFO - Creating copies of initial program a7982a41-3402-4dd6-8738-13e62cbf7e49 for all islands
+2026-01-14 08:56:57 - shinka.database.islands - INFO - Created copy 6a83390c... of program a7982a41... for island 1
+2026-01-14 08:56:57 - shinka.database.islands - INFO - Created 1 copies of program a7982a41... for islands 1-1
+2026-01-14 08:56:57 - shinka.database.dbase - INFO - Database state committed. Last iteration: 0. Best: a7982a41-3402-4dd6-8738-13e62cbf7e49
+2026-01-14 08:56:57 - shinka.core.runner - INFO - New best program found: gen 0, id a7982a... Copied to results_new/best
+2026-01-14 08:56:57 - shinka.core.summarizer - INFO - Added program a7982a41-3402-4dd6-8738-13e62cbf7e49 to meta memory tracking (correct=True, total: 1)
+2026-01-14 08:56:57 - shinka.core.summarizer - INFO - Saved meta state to results_new/meta_memory.json: 1 unprocessed programs, summary: No, scratchpad: No, recommendations: No, history: 0 items
+2026-01-14 08:56:57 - shinka.core.runner - INFO - Completed generation 0, total: 1/10
+2026-01-14 08:56:57 - shinka.core.runner - INFO - Starting parallel execution for remaining generations...
+2026-01-14 08:56:57 - shinka.database.parents - INFO - Island 0 => Probabilities: [1.0]
+2026-01-14 08:56:57 - shinka.database.parents - INFO - Island 0 => Scores: [0.18080472862682484]
+2026-01-14 08:56:57 - shinka.database.parents - INFO - Sampled parent a7982a41-3402-4dd6-8738-13e62cbf7e49 (Gen: 0, Score: 0.1808, Children: 0, Island: 0)
+2026-01-14 08:56:57 - shinka.core.runner - INFO - Edit Cycle 1 -> 2, Max Patch Attempts: 3
+2026-01-14 08:56:57 - shinka.llm.llm - INFO - ==> SAMPLING:
+  openrouter/anthropic/claude-opus-4.5   1.0000
+2026-01-14 08:56:57 - shinka.llm.llm - INFO - ==> QUERYING: ['openrouter/anthropic/claude-opus-4.5', 0.7, 8192]
+2026-01-14 08:57:08 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-14 08:58:03 - shinka.llm.llm - INFO - ==> QUERY: API cost: $0.0527
+2026-01-14 08:58:03 - shinka.core.runner - INFO -   PATCH ATTEMPT 1/3 SUCCESS. Output: results_new/gen_1/main.py, Patches Applied: 1.
+2026-01-14 08:58:03 - shinka.core.novelty_judge - INFO - NOVELTY CHECK: Skipping rejection sampling - no embedding
+2026-01-14 08:58:03 - shinka.launch.local - INFO - Submitted local process with PID: 3386137
+2026-01-14 08:58:03 - shinka.launch.local - INFO - Launched local command: python evaluate.py --program_path results_new/gen_1/main.py --results_dir results_new/gen_1/results
+2026-01-14 08:58:03 - shinka.core.runner - INFO - Submitted job for generation 1, queue size: 1
+2026-01-14 08:58:05 - shinka.database.parents - INFO - Island 1 => Probabilities: [1.0]
+2026-01-14 08:58:05 - shinka.database.parents - INFO - Island 1 => Scores: [0.18080472862682484]
+2026-01-14 08:58:05 - shinka.database.parents - INFO - Sampled parent 6a83390c-2931-482f-ae8d-74ffffd46cb9 (Gen: 0, Score: 0.1808, Children: 0, Island: 1)
+2026-01-14 08:58:05 - shinka.core.runner - INFO - Edit Cycle 2 -> 3, Max Patch Attempts: 3
+2026-01-14 08:58:05 - shinka.llm.llm - INFO - ==> SAMPLING:
+  openrouter/anthropic/claude-opus-4.5   1.0000
+2026-01-14 08:58:05 - shinka.llm.llm - INFO - ==> QUERYING: ['openrouter/anthropic/claude-opus-4.5', 0.3, 8192]
+2026-01-14 08:58:15 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-14 08:58:57 - shinka.llm.llm - INFO - ==> QUERY: API cost: $0.0449
+2026-01-14 08:58:57 - shinka.core.runner - INFO -   PATCH ATTEMPT 1/3 SUCCESS. Output: results_new/gen_2/main.py, Patches Applied: 1.
+2026-01-14 08:58:57 - shinka.core.novelty_judge - INFO - NOVELTY CHECK: Skipping rejection sampling - no embedding
+2026-01-14 08:58:57 - shinka.launch.local - INFO - Submitted local process with PID: 3386459
+2026-01-14 08:58:57 - shinka.launch.local - INFO - Launched local command: python evaluate.py --program_path results_new/gen_2/main.py --results_dir results_new/gen_2/results
+2026-01-14 08:58:57 - shinka.core.runner - INFO - Submitted job for generation 2, queue size: 2
+2026-01-14 08:58:59 - shinka.core.runner - INFO - Job ProcessWithLogging(PID: 3386137) completed!
+2026-01-14 08:58:59 - shinka.launch.local - INFO - Monitoring local process with PID: 3386137...
+2026-01-14 08:58:59 - shinka.launch.local - INFO - Process 3386137 completed with return code: 0
+2026-01-14 08:58:59 - shinka.database.dbase - INFO - Program 492f2ee3-a719-4f48-b946-b3d287ba96c8 added to DB - score: 0.18729386592197647.
+2026-01-14 08:58:59 - shinka.database.dbase - INFO - New best program: 492f2ee3-a719-4f48-b946-b3d287ba96c8 (gen: 0 → 1, score: 0.1808 → 0.1873, island: 0 → 0)
+2026-01-14 08:58:59 - shinka.database.dbase - INFO - Not enough programs with embeddings (0) to perform clustering. Need at least 4.
+2026-01-14 08:58:59 - shinka.core.summarizer - INFO - Added program 492f2ee3-a719-4f48-b946-b3d287ba96c8 to meta memory tracking (correct=True, total: 2)
+2026-01-14 08:58:59 - shinka.database.dbase - INFO - Database state committed. Last iteration: 1. Best: 492f2ee3-a719-4f48-b946-b3d287ba96c8
+2026-01-14 08:58:59 - shinka.core.runner - INFO - New best program found: gen 1, id 492f2e... Copied to results_new/best
+2026-01-14 08:58:59 - shinka.core.summarizer - INFO - Saved meta state to results_new/meta_memory.json: 2 unprocessed programs, summary: No, scratchpad: No, recommendations: No, history: 0 items
+2026-01-14 08:58:59 - shinka.core.runner - INFO - Processed 1 jobs. Total completed generations: 2/10
+2026-01-14 08:58:59 - shinka.database.parents - INFO - Island 1 => Probabilities: [1.0]
+2026-01-14 08:58:59 - shinka.database.parents - INFO - Island 1 => Scores: [0.18080472862682484]
+2026-01-14 08:58:59 - shinka.database.parents - INFO - Sampled parent 6a83390c-2931-482f-ae8d-74ffffd46cb9 (Gen: 0, Score: 0.1808, Children: 0, Island: 1)
+2026-01-14 08:58:59 - shinka.core.runner - INFO - Edit Cycle 3 -> 4, Max Patch Attempts: 3
+2026-01-14 08:58:59 - shinka.llm.llm - INFO - ==> SAMPLING:
+  openrouter/anthropic/claude-opus-4.5   1.0000
+2026-01-14 08:58:59 - shinka.llm.llm - INFO - ==> QUERYING: ['openrouter/anthropic/claude-opus-4.5', 0.7, 8192]
+2026-01-14 08:59:02 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-14 08:59:27 - shinka.llm.llm - INFO - ==> QUERY: API cost: $0.0400
+2026-01-14 08:59:27 - shinka.core.runner - INFO -   PATCH ATTEMPT 1/3 SUCCESS. Output: results_new/gen_3/main.py, Patches Applied: 1.
+2026-01-14 08:59:27 - shinka.core.novelty_judge - INFO - NOVELTY CHECK: Skipping rejection sampling - no embedding
+2026-01-14 08:59:27 - shinka.launch.local - INFO - Submitted local process with PID: 3386706
+2026-01-14 08:59:27 - shinka.launch.local - INFO - Launched local command: python evaluate.py --program_path results_new/gen_3/main.py --results_dir results_new/gen_3/results
+2026-01-14 08:59:27 - shinka.core.runner - INFO - Submitted job for generation 3, queue size: 2
+2026-01-14 08:59:29 - shinka.core.runner - INFO - Job ProcessWithLogging(PID: 3386459) completed!
+2026-01-14 08:59:29 - shinka.launch.local - INFO - Monitoring local process with PID: 3386459...
+2026-01-14 08:59:29 - shinka.launch.local - INFO - Process 3386459 completed with return code: 0
+2026-01-14 08:59:29 - shinka.database.dbase - INFO - Program 51126b5e-1bef-4c24-b238-2014aa3b2600 added to DB - score: 0.0.
+2026-01-14 08:59:29 - shinka.database.dbase - INFO - Not enough programs with embeddings (0) to perform clustering. Need at least 4.
+2026-01-14 08:59:29 - shinka.core.summarizer - INFO - Added program 51126b5e-1bef-4c24-b238-2014aa3b2600 to meta memory tracking (correct=False, total: 3)
+2026-01-14 08:59:29 - shinka.database.dbase - INFO - Database state committed. Last iteration: 2. Best: 492f2ee3-a719-4f48-b946-b3d287ba96c8
+2026-01-14 08:59:29 - shinka.core.summarizer - INFO - Saved meta state to results_new/meta_memory.json: 3 unprocessed programs, summary: No, scratchpad: No, recommendations: No, history: 0 items
+2026-01-14 08:59:29 - shinka.core.runner - INFO - Processed 1 jobs. Total completed generations: 3/10
+2026-01-14 08:59:29 - shinka.database.parents - INFO - Island 1 => Probabilities: [1.0]
+2026-01-14 08:59:29 - shinka.database.parents - INFO - Island 1 => Scores: [0.18080472862682484]
+2026-01-14 08:59:29 - shinka.database.parents - INFO - Sampled parent 6a83390c-2931-482f-ae8d-74ffffd46cb9 (Gen: 0, Score: 0.1808, Children: 1, Island: 1)
+2026-01-14 08:59:29 - shinka.core.runner - INFO - Edit Cycle 4 -> 5, Max Patch Attempts: 3
+2026-01-14 08:59:29 - shinka.llm.llm - INFO - ==> SAMPLING:
+  openrouter/anthropic/claude-opus-4.5   1.0000
+2026-01-14 08:59:29 - shinka.llm.llm - INFO - ==> QUERYING: ['openrouter/anthropic/claude-opus-4.5', 0.7, 8192]
+2026-01-14 08:59:39 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-14 09:00:25 - shinka.llm.llm - INFO - ==> QUERY: API cost: $0.0493
+2026-01-14 09:00:25 - shinka.core.runner - INFO -   PATCH ATTEMPT 1/3 SUCCESS. Output: results_new/gen_4/main.py, Patches Applied: 1.
+2026-01-14 09:00:25 - shinka.core.novelty_judge - INFO - NOVELTY CHECK: Skipping rejection sampling - no embedding
+2026-01-14 09:00:25 - shinka.launch.local - INFO - Submitted local process with PID: 3387111
+2026-01-14 09:00:25 - shinka.launch.local - INFO - Launched local command: python evaluate.py --program_path results_new/gen_4/main.py --results_dir results_new/gen_4/results
+2026-01-14 09:00:25 - shinka.core.runner - INFO - Submitted job for generation 4, queue size: 2
+2026-01-14 09:00:27 - shinka.core.runner - INFO - Job ProcessWithLogging(PID: 3386706) completed!
+2026-01-14 09:00:27 - shinka.launch.local - INFO - Monitoring local process with PID: 3386706...
+2026-01-14 09:00:27 - shinka.launch.local - INFO - Process 3386706 completed with return code: 0
+2026-01-14 09:00:27 - shinka.database.dbase - INFO - Program 4361ade9-b718-41bd-bb7e-754650235575 added to DB - score: 0.18952593585292135.
+2026-01-14 09:00:27 - shinka.database.dbase - INFO - New best program: 4361ade9-b718-41bd-bb7e-754650235575 (gen: 1 → 3, score: 0.1873 → 0.1895, island: 0 → 1)
+2026-01-14 09:00:27 - shinka.database.dbase - INFO - Not enough programs with embeddings (0) to perform clustering. Need at least 4.
+2026-01-14 09:00:27 - shinka.core.summarizer - INFO - Added program 4361ade9-b718-41bd-bb7e-754650235575 to meta memory tracking (correct=True, total: 4)
+2026-01-14 09:00:27 - shinka.database.dbase - INFO - Database state committed. Last iteration: 3. Best: 4361ade9-b718-41bd-bb7e-754650235575
+2026-01-14 09:00:27 - shinka.core.runner - INFO - New best program found: gen 3, id 4361ad... Copied to results_new/best
+2026-01-14 09:00:27 - shinka.core.summarizer - INFO - Saved meta state to results_new/meta_memory.json: 4 unprocessed programs, summary: No, scratchpad: No, recommendations: No, history: 0 items
+2026-01-14 09:00:27 - shinka.core.runner - INFO - Processed 1 jobs. Total completed generations: 4/10
+2026-01-14 09:00:27 - shinka.database.parents - INFO - Island 0 => Probabilities: [2.2699449604532607e-05, 0.9999773005503955]
+2026-01-14 09:00:27 - shinka.database.parents - INFO - Island 0 => Scores: [0.18080472862682484, 0.18729386592197647]
+2026-01-14 09:00:27 - shinka.database.parents - INFO - Sampled parent 492f2ee3-a719-4f48-b946-b3d287ba96c8 (Gen: 1, Score: 0.1873, Children: 0, Island: 0)
+2026-01-14 09:00:27 - shinka.database.inspirations - INFO - Sampled 1 archive inspirations: ['a7982a41-3402-4dd6-8738-13e62cbf7e49 (Gen: 0, Score: 0.1808, Island: 0)']
+2026-01-14 09:00:27 - shinka.core.runner - INFO - Edit Cycle 5 -> 6, Max Patch Attempts: 3
+2026-01-14 09:00:27 - shinka.llm.llm - INFO - ==> SAMPLING:
+  openrouter/anthropic/claude-opus-4.5   1.0000
+2026-01-14 09:00:27 - shinka.llm.llm - INFO - ==> QUERYING: ['openrouter/anthropic/claude-opus-4.5', 0.3, 8192]
+2026-01-14 09:00:37 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-14 09:01:26 - shinka.llm.llm - INFO - ==> QUERY: API cost: $0.0497
+2026-01-14 09:01:26 - shinka.core.runner - INFO -   PATCH ATTEMPT 1/3 SUCCESS. Output: results_new/gen_5/main.py, Patches Applied: 2.
+2026-01-14 09:01:26 - shinka.core.novelty_judge - INFO - NOVELTY CHECK: Skipping rejection sampling - no embedding
+2026-01-14 09:01:26 - shinka.launch.local - INFO - Submitted local process with PID: 3387605
+2026-01-14 09:01:26 - shinka.launch.local - INFO - Launched local command: python evaluate.py --program_path results_new/gen_5/main.py --results_dir results_new/gen_5/results
+2026-01-14 09:01:26 - shinka.core.runner - INFO - Submitted job for generation 5, queue size: 2
+2026-01-14 09:01:28 - shinka.core.runner - INFO - Job ProcessWithLogging(PID: 3387111) completed!
+2026-01-14 09:01:28 - shinka.launch.local - INFO - Monitoring local process with PID: 3387111...
+2026-01-14 09:01:28 - shinka.launch.local - INFO - Process 3387111 completed with return code: 0
+2026-01-14 09:01:28 - shinka.database.dbase - INFO - Program 544c520d-0f24-4e2c-936e-82fae75765aa added to DB - score: 0.18922323564019475.
+2026-01-14 09:01:28 - shinka.database.dbase - INFO - Not enough programs with embeddings (0) to perform clustering. Need at least 4.
+2026-01-14 09:01:28 - shinka.core.summarizer - INFO - Added program 544c520d-0f24-4e2c-936e-82fae75765aa to meta memory tracking (correct=True, total: 5)
+2026-01-14 09:01:28 - shinka.database.dbase - INFO - Database state committed. Last iteration: 4. Best: 4361ade9-b718-41bd-bb7e-754650235575
+2026-01-14 09:01:28 - shinka.core.summarizer - INFO - Saved meta state to results_new/meta_memory.json: 5 unprocessed programs, summary: No, scratchpad: No, recommendations: No, history: 0 items
+2026-01-14 09:01:28 - shinka.core.runner - INFO - Processed 1 jobs. Total completed generations: 5/10
+2026-01-14 09:01:28 - shinka.database.parents - INFO - Island 1 => Probabilities: [2.745524206264964e-122, 0.6666565779460619, 0.3333434220539382]
+2026-01-14 09:01:28 - shinka.database.parents - INFO - Island 1 => Scores: [0.18080472862682484, 0.18952593585292135, 0.18922323564019475]
+2026-01-14 09:01:28 - shinka.database.parents - INFO - Sampled parent 4361ade9-b718-41bd-bb7e-754650235575 (Gen: 3, Score: 0.1895, Children: 0, Island: 1)
+2026-01-14 09:01:28 - shinka.database.inspirations - INFO - Sampled 2 archive inspirations: ['6a83390c-2931-482f-ae8d-74ffffd46cb9 (Gen: 0, Score: 0.1808, Island: 1)', '544c520d-0f24-4e2c-936e-82fae75765aa (Gen: 4, Score: 0.1892, Island: 1)']
+2026-01-14 09:01:28 - shinka.core.runner - INFO - Edit Cycle 6 -> 7, Max Patch Attempts: 3
+2026-01-14 09:01:28 - shinka.llm.llm - INFO - ==> SAMPLING:
+  openrouter/anthropic/claude-opus-4.5   1.0000
+2026-01-14 09:01:28 - shinka.llm.llm - INFO - ==> QUERYING: ['openrouter/anthropic/claude-opus-4.5', 1.0, 8192]
+2026-01-14 09:01:39 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-14 09:02:46 - shinka.llm.llm - INFO - ==> QUERY: API cost: $0.0779
+2026-01-14 09:02:46 - shinka.core.runner - INFO -   PATCH ATTEMPT 1/3 SUCCESS. Output: results_new/gen_6/main.py, Patches Applied: 1.
+2026-01-14 09:02:46 - shinka.core.novelty_judge - INFO - NOVELTY CHECK: Skipping rejection sampling - no embedding
+2026-01-14 09:02:46 - shinka.launch.local - INFO - Submitted local process with PID: 3388177
+2026-01-14 09:02:46 - shinka.launch.local - INFO - Launched local command: python evaluate.py --program_path results_new/gen_6/main.py --results_dir results_new/gen_6/results
+2026-01-14 09:02:46 - shinka.core.runner - INFO - Submitted job for generation 6, queue size: 2
+2026-01-14 09:02:48 - shinka.core.runner - INFO - Job ProcessWithLogging(PID: 3387605) completed!
+2026-01-14 09:02:48 - shinka.launch.local - INFO - Monitoring local process with PID: 3387605...
+2026-01-14 09:02:48 - shinka.launch.local - INFO - Process 3387605 completed with return code: 0
+2026-01-14 09:02:48 - shinka.database.dbase - INFO - Program b86d8c9a-77d4-4403-9f1e-b8912c403cf5 added to DB - score: 0.18736801477194556.
+2026-01-14 09:02:48 - shinka.database.dbase - INFO - Not enough programs with embeddings (0) to perform clustering. Need at least 4.
+2026-01-14 09:02:48 - shinka.database.dbase - INFO - Running scheduled migration operation
+2026-01-14 09:02:48 - shinka.database.islands - INFO - Performing island migration at generation 5
+2026-01-14 09:02:48 - shinka.database.islands - WARNING - Program 492f2ee3... already selected for migration, skipping duplicate
+2026-01-14 09:02:48 - shinka.database.islands - INFO - Migration complete. Migrated 1 programs.
+2026-01-14 09:02:48 - shinka.core.summarizer - INFO - Added program b86d8c9a-77d4-4403-9f1e-b8912c403cf5 to meta memory tracking (correct=True, total: 6)
+2026-01-14 09:02:48 - shinka.database.dbase - INFO - Database state committed. Last iteration: 5. Best: 4361ade9-b718-41bd-bb7e-754650235575
+2026-01-14 09:02:48 - shinka.core.summarizer - INFO - Saved meta state to results_new/meta_memory.json: 6 unprocessed programs, summary: No, scratchpad: No, recommendations: No, history: 0 items
+2026-01-14 09:02:48 - shinka.core.runner - INFO - Processed 1 jobs. Total completed generations: 6/10
+2026-01-14 09:02:48 - shinka.database.parents - INFO - Island 0 => Probabilities: [2.2699449604534542e-05, 0.9999773005503955]
+2026-01-14 09:02:48 - shinka.database.parents - INFO - Island 0 => Scores: [0.18080472862682484, 0.18736801477194556]
+2026-01-14 09:02:48 - shinka.database.parents - INFO - Sampled parent b86d8c9a-77d4-4403-9f1e-b8912c403cf5 (Gen: 5, Score: 0.1874, Children: 0, Island: 0)
+2026-01-14 09:02:48 - shinka.database.inspirations - INFO - Sampled 1 archive inspirations: ['a7982a41-3402-4dd6-8738-13e62cbf7e49 (Gen: 0, Score: 0.1808, Island: 0)']
+2026-01-14 09:02:48 - shinka.core.runner - INFO - Edit Cycle 7 -> 8, Max Patch Attempts: 3
+2026-01-14 09:02:48 - shinka.llm.llm - INFO - ==> SAMPLING:
+  openrouter/anthropic/claude-opus-4.5   1.0000
+2026-01-14 09:02:48 - shinka.llm.llm - INFO - ==> QUERYING: ['openrouter/anthropic/claude-opus-4.5', 0.7, 8192]
+2026-01-14 09:02:58 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-14 09:03:50 - shinka.llm.llm - INFO - ==> QUERY: API cost: $0.0588
+2026-01-14 09:03:51 - shinka.core.runner - INFO -   PATCH ATTEMPT 1/3 SUCCESS. Output: results_new/gen_7/main.py, Patches Applied: 3.
+2026-01-14 09:03:51 - shinka.core.novelty_judge - INFO - NOVELTY CHECK: Skipping rejection sampling - no embedding
+2026-01-14 09:03:51 - shinka.launch.local - INFO - Submitted local process with PID: 3388671
+2026-01-14 09:03:51 - shinka.launch.local - INFO - Launched local command: python evaluate.py --program_path results_new/gen_7/main.py --results_dir results_new/gen_7/results
+2026-01-14 09:03:51 - shinka.core.runner - INFO - Submitted job for generation 7, queue size: 2
+2026-01-14 09:03:53 - shinka.core.runner - INFO - Job ProcessWithLogging(PID: 3388177) completed!
+2026-01-14 09:03:53 - shinka.launch.local - INFO - Monitoring local process with PID: 3388177...
+2026-01-14 09:03:53 - shinka.launch.local - INFO - Process 3388177 completed with return code: 0
+2026-01-14 09:03:53 - shinka.database.dbase - INFO - Program f569438d-7d1d-4bee-8d6f-3474867fcba3 added to DB - score: 0.1890546939824025.
+2026-01-14 09:03:53 - shinka.database.dbase - INFO - Not enough programs with embeddings (0) to perform clustering. Need at least 4.
+2026-01-14 09:03:53 - shinka.core.summarizer - INFO - Added program f569438d-7d1d-4bee-8d6f-3474867fcba3 to meta memory tracking (correct=True, total: 7)
+2026-01-14 09:03:53 - shinka.database.dbase - INFO - Database state committed. Last iteration: 6. Best: 4361ade9-b718-41bd-bb7e-754650235575
+2026-01-14 09:03:53 - shinka.core.summarizer - INFO - Saved meta state to results_new/meta_memory.json: 7 unprocessed programs, summary: No, scratchpad: No, recommendations: No, history: 0 items
+2026-01-14 09:03:53 - shinka.core.runner - INFO - Processed 1 jobs. Total completed generations: 7/10
+2026-01-14 09:03:53 - shinka.database.parents - INFO - Island 0 => Probabilities: [2.2699449604534542e-05, 0.9999773005503955]
+2026-01-14 09:03:53 - shinka.database.parents - INFO - Island 0 => Scores: [0.18080472862682484, 0.18736801477194556]
+2026-01-14 09:03:53 - shinka.database.parents - INFO - Sampled parent b86d8c9a-77d4-4403-9f1e-b8912c403cf5 (Gen: 5, Score: 0.1874, Children: 0, Island: 0)
+2026-01-14 09:03:53 - shinka.database.inspirations - INFO - Sampled 1 archive inspirations: ['a7982a41-3402-4dd6-8738-13e62cbf7e49 (Gen: 0, Score: 0.1808, Island: 0)']
+2026-01-14 09:03:53 - shinka.core.runner - INFO - Edit Cycle 8 -> 9, Max Patch Attempts: 3
+2026-01-14 09:03:53 - shinka.llm.llm - INFO - ==> SAMPLING:
+  openrouter/anthropic/claude-opus-4.5   1.0000
+2026-01-14 09:03:53 - shinka.llm.llm - INFO - ==> QUERYING: ['openrouter/anthropic/claude-opus-4.5', 0.3, 8192]
+2026-01-14 09:04:03 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-14 09:05:02 - shinka.llm.llm - INFO - ==> QUERY: API cost: $0.0662
+2026-01-14 09:05:02 - shinka.core.runner - INFO -   PATCH ATTEMPT 1/3 SUCCESS. Output: results_new/gen_8/main.py, Patches Applied: 1.
+2026-01-14 09:05:02 - shinka.core.novelty_judge - INFO - NOVELTY CHECK: Skipping rejection sampling - no embedding
+2026-01-14 09:05:02 - shinka.launch.local - INFO - Submitted local process with PID: 3389313
+2026-01-14 09:05:02 - shinka.launch.local - INFO - Launched local command: python evaluate.py --program_path results_new/gen_8/main.py --results_dir results_new/gen_8/results
+2026-01-14 09:05:02 - shinka.core.runner - INFO - Submitted job for generation 8, queue size: 2
+2026-01-14 09:05:04 - shinka.core.runner - INFO - Job ProcessWithLogging(PID: 3388671) completed!
+2026-01-14 09:05:04 - shinka.launch.local - INFO - Monitoring local process with PID: 3388671...
+2026-01-14 09:05:04 - shinka.launch.local - INFO - Process 3388671 completed with return code: 0
+2026-01-14 09:05:04 - shinka.database.dbase - INFO - Program 139201ca-e513-4d66-9a0c-96547009aae1 added to DB - score: 0.18945029558587095.
+2026-01-14 09:05:04 - shinka.database.dbase - INFO - Not enough programs with embeddings (0) to perform clustering. Need at least 4.
+2026-01-14 09:05:04 - shinka.core.summarizer - INFO - Added program 139201ca-e513-4d66-9a0c-96547009aae1 to meta memory tracking (correct=True, total: 8)
+2026-01-14 09:05:04 - shinka.database.dbase - INFO - Database state committed. Last iteration: 7. Best: 4361ade9-b718-41bd-bb7e-754650235575
+2026-01-14 09:05:04 - shinka.core.summarizer - INFO - Saved meta state to results_new/meta_memory.json: 8 unprocessed programs, summary: No, scratchpad: No, recommendations: No, history: 0 items
+2026-01-14 09:05:04 - shinka.core.runner - INFO - Processed 1 jobs. Total completed generations: 8/10
+2026-01-14 09:05:04 - shinka.database.parents - INFO - Island 0 => Probabilities: [8.189267377622257e-15, 0.20000726392280405, 0.7999927360771879]
+2026-01-14 09:05:04 - shinka.database.parents - INFO - Island 0 => Scores: [0.18080472862682484, 0.18736801477194556, 0.18945029558587095]
+2026-01-14 09:05:04 - shinka.database.parents - INFO - Sampled parent b86d8c9a-77d4-4403-9f1e-b8912c403cf5 (Gen: 5, Score: 0.1874, Children: 1, Island: 0)
+2026-01-14 09:05:04 - shinka.database.inspirations - INFO - Sampled 2 archive inspirations: ['a7982a41-3402-4dd6-8738-13e62cbf7e49 (Gen: 0, Score: 0.1808, Island: 0)', '139201ca-e513-4d66-9a0c-96547009aae1 (Gen: 7, Score: 0.1895, Island: 0)']
+2026-01-14 09:05:04 - shinka.core.runner - INFO - Edit Cycle 9 -> 10, Max Patch Attempts: 3
+2026-01-14 09:05:04 - shinka.llm.llm - INFO - ==> SAMPLING:
+  openrouter/anthropic/claude-opus-4.5   1.0000
+2026-01-14 09:05:04 - shinka.llm.llm - INFO - ==> QUERYING: ['openrouter/anthropic/claude-opus-4.5', 0.3, 8192]
+2026-01-14 09:05:15 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-14 09:06:18 - shinka.llm.llm - INFO - ==> QUERY: API cost: $0.0789
+2026-01-14 09:06:18 - shinka.core.runner - INFO -   PATCH ATTEMPT 1/3 SUCCESS. Output: results_new/gen_9/main.py, Patches Applied: 1.
+2026-01-14 09:06:18 - shinka.core.novelty_judge - INFO - NOVELTY CHECK: Skipping rejection sampling - no embedding
+2026-01-14 09:06:18 - shinka.launch.local - INFO - Submitted local process with PID: 3389837
+2026-01-14 09:06:18 - shinka.launch.local - INFO - Launched local command: python evaluate.py --program_path results_new/gen_9/main.py --results_dir results_new/gen_9/results
+2026-01-14 09:06:18 - shinka.core.runner - INFO - Submitted job for generation 9, queue size: 2
+2026-01-14 09:06:20 - shinka.core.runner - INFO - Job ProcessWithLogging(PID: 3389313) completed!
+2026-01-14 09:06:20 - shinka.launch.local - INFO - Monitoring local process with PID: 3389313...
+2026-01-14 09:06:20 - shinka.launch.local - INFO - Process 3389313 completed with return code: 0
+2026-01-14 09:06:20 - shinka.database.dbase - INFO - Program 1aee2710-ebd6-4875-9b4a-f7e547e623e4 added to DB - score: 0.19015214336160885.
+2026-01-14 09:06:20 - shinka.database.dbase - INFO - New best program: 1aee2710-ebd6-4875-9b4a-f7e547e623e4 (gen: 3 → 8, score: 0.1895 → 0.1902, island: 1 → 0)
+2026-01-14 09:06:20 - shinka.database.dbase - INFO - Not enough programs with embeddings (0) to perform clustering. Need at least 4.
+2026-01-14 09:06:20 - shinka.core.summarizer - INFO - Added program 1aee2710-ebd6-4875-9b4a-f7e547e623e4 to meta memory tracking (correct=True, total: 9)
+2026-01-14 09:06:20 - shinka.database.dbase - INFO - Database state committed. Last iteration: 8. Best: 1aee2710-ebd6-4875-9b4a-f7e547e623e4
+2026-01-14 09:06:20 - shinka.core.runner - INFO - New best program found: gen 8, id 1aee27... Copied to results_new/best
+2026-01-14 09:06:20 - shinka.core.summarizer - INFO - Saved meta state to results_new/meta_memory.json: 9 unprocessed programs, summary: No, scratchpad: No, recommendations: No, history: 0 items
+2026-01-14 09:06:20 - shinka.core.runner - INFO - Processed 1 jobs. Total completed generations: 9/10
+2026-01-14 09:06:46 - shinka.core.runner - INFO - Job ProcessWithLogging(PID: 3389837) completed!
+2026-01-14 09:06:46 - shinka.launch.local - INFO - Monitoring local process with PID: 3389837...
+2026-01-14 09:06:46 - shinka.launch.local - INFO - Process 3389837 completed with return code: 0
+2026-01-14 09:06:46 - shinka.database.dbase - INFO - Program c58cd641-5add-4a6c-800c-c9b241e3bb11 added to DB - score: 0.10157440325038089.
+2026-01-14 09:06:46 - shinka.database.dbase - INFO - Not enough programs with embeddings (0) to perform clustering. Need at least 4.
+2026-01-14 09:06:46 - shinka.core.summarizer - INFO - Added program c58cd641-5add-4a6c-800c-c9b241e3bb11 to meta memory tracking (correct=True, total: 10)
+2026-01-14 09:06:46 - shinka.database.dbase - INFO - Database state committed. Last iteration: 9. Best: 1aee2710-ebd6-4875-9b4a-f7e547e623e4
+2026-01-14 09:06:46 - shinka.core.summarizer - INFO - Saved meta state to results_new/meta_memory.json: 10 unprocessed programs, summary: No, scratchpad: No, recommendations: No, history: 0 items
+2026-01-14 09:06:46 - shinka.core.runner - INFO - Processed 1 jobs. Total completed generations: 10/10
+2026-01-14 09:06:46 - shinka.core.runner - INFO - All generations completed, exiting...
+2026-01-14 09:06:46 - shinka.core.summarizer - INFO - No meta LLM client configured, skipping final summary
+2026-01-14 09:06:46 - shinka.core.summarizer - INFO - Saved meta state to results_new/meta_memory.json: 10 unprocessed programs, summary: No, scratchpad: No, recommendations: No, history: 0 items
+2026-01-14 09:06:46 - shinka.core.runner - INFO - Evolution completed! 10 generations
+2026-01-14 09:06:46 - shinka.core.runner - INFO - ================================================================================
+2026-01-14 09:06:46 - shinka.core.runner - INFO - Evolution run ended at 2026-01-14 09:06:46
+2026-01-14 09:06:46 - shinka.core.runner - INFO - ================================================================================
