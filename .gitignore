@@ -28,9 +28,6 @@ experiments/tsp_comparison/evolution_history.json
 .DS_Store
 Thumbs.db
 
-# External dependencies (clone separately)
-ShinkaEvolve/
-
 # Large binary files in results (keep code/metrics, exclude binaries)
 *.npz
 *.sqlite

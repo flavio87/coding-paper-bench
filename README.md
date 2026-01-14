@@ -24,58 +24,27 @@ This project compares two approaches for improving optimization algorithms using
 
 ## Quick Start
 
-### 1. Clone the Repository
-
 ```bash
+# 1. Clone the repository (includes modified ShinkaEvolve with OpenRouter support)
 git clone https://github.com/flavio87/coding-paper-bench.git
 cd coding-paper-bench
-```
 
-### 2. Install ShinkaEvolve with OpenRouter Support
-
-```bash
-# Clone ShinkaEvolve (modified fork with OpenRouter support)
-git clone https://github.com/SakanaAI/ShinkaEvolve.git
-
-# Create virtual environment
+# 2. Create venv and install ShinkaEvolve
 cd ShinkaEvolve
 python3 -m venv .venv
 source .venv/bin/activate
-
-# Install ShinkaEvolve
 pip install -e .
-
-# Return to main directory
 cd ..
-```
 
-### 3. Apply OpenRouter Patches
-
-The ShinkaEvolve library needs modifications to work with OpenRouter. Apply these patches:
-
-```bash
-# Copy the OpenRouter integration files
-cp experiments/shinka_tsp/openrouter_patches/* ShinkaEvolve/shinka/llm/models/
-```
-
-Or manually add the OpenRouter support (see [OpenRouter Integration](#openrouter-integration) below).
-
-### 4. Set Up API Key
-
-```bash
+# 3. Set your API key
 export OPENROUTER_API_KEY="sk-or-v1-your-key-here"
-```
 
-### 5. Run an Experiment
-
-```bash
-# Activate the ShinkaEvolve venv
-source ShinkaEvolve/.venv/bin/activate
-
-# Run the real ShinkaEvolve experiment
+# 4. Run an experiment
 cd experiments/shinka_tsp
 python run_evo.py
 ```
+
+That's it! The repository includes a modified version of [ShinkaEvolve](https://github.com/SakanaAI/ShinkaEvolve) with OpenRouter support already integrated.
 
 ---
 
@@ -154,7 +123,7 @@ python run_evo.py
 
 ## OpenRouter Integration
 
-ShinkaEvolve was modified to support OpenRouter. Key changes:
+The included ShinkaEvolve has been modified to support OpenRouter. Key changes (already applied):
 
 ### 1. `shinka/llm/models/pricing.py`
 Added OpenRouter model pricing:
@@ -202,6 +171,8 @@ Updated dispatch to route OpenRouter models correctly.
 coding-paper-bench/
 ├── README.md                              # This file
 ├── .gitignore
+├── ShinkaEvolve/                          # Modified ShinkaEvolve with OpenRouter support
+│   └── shinka/                            # Core library (see OpenRouter Integration below)
 ├── experiments/
 │   ├── tsp_comparison/                    # Naive comparison experiment
 │   │   ├── run_comparison.py              # Paper-based vs simple evolution
@@ -211,14 +182,11 @@ coding-paper-bench/
 │       ├── run_evo.py                     # Main experiment runner
 │       ├── initial.py                     # TSP baseline code
 │       ├── evaluate.py                    # Evaluation function
-│       ├── results_tsp_opus/              # Opus 4.5 experiment results
-│       │   ├── gen_*/                     # Each generation's code and results
-│       │   ├── evolution_db.sqlite        # Database for visualization
-│       │   └── evolution_run.log          # Experiment log
-│       └── openrouter_patches/            # OpenRouter integration files
-├── paperbench/
-│   └── tasks/tsp/                         # TSP baseline implementation
-└── ShinkaEvolve/                          # (clone separately - in .gitignore)
+│       └── results_tsp_opus/              # Opus 4.5 experiment results
+│           ├── gen_*/                     # Each generation's code and results
+│           └── evolution_run.log          # Experiment log
+└── paperbench/
+    └── tasks/tsp/                         # TSP baseline implementation
 ```
 
 ---

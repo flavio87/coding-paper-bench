@@ -1,7 +1,5 @@
 """
 OpenRouter query function using standard OpenAI Chat Completions API.
-
-This file should be placed in: ShinkaEvolve/shinka/llm/models/openrouter.py
 """
 import backoff
 import openai
