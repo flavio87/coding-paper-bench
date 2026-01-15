@@ -45,23 +45,81 @@ from shinka.launch import LocalJobConfig
 
 TSP_TASK_SYSTEM_MSG = """You are an expert algorithm engineer specializing in combinatorial optimization and the Traveling Salesman Problem (TSP).
 
-The current solver uses Nearest Neighbor construction + 2-opt local search. Your goal is to improve it.
+The current solver uses Nearest Neighbor construction + 2-opt local search. Your goal is to improve it significantly.
 
-Key directions to explore:
-1. **Better construction heuristics**: Christofides, insertion heuristics, savings algorithm
-2. **Improved local search**: 3-opt, Or-opt (relocate segments of 1-3 cities), Lin-Kernighan moves
-3. **Meta-heuristics**: Simulated annealing, genetic algorithms, tabu search
-4. **Speed optimizations**: Don't-look bits, neighbor lists, incremental distance updates
-5. **Multi-start strategies**: Try different starting cities, combine multiple solutions
-6. **Hybrid approaches**: Combine construction with aggressive local search
+## State-of-the-Art Reference: Lin-Kernighan Algorithm
 
-Important constraints:
-- Keep the same interface: solve_tsp(coords, time_limit_ms) -> (tour, length)
-- Stay within the time limit
-- The tour must visit all cities exactly once
+The best TSP heuristics (LKH) achieve <1% gap from optimal. Key techniques:
+
+```
+LIN-KERNIGHAN PSEUDOCODE:
+1. Start with any tour
+2. For each node i, attempt variable-depth improvement:
+   - Break edge (t1, t2) where t1 = i
+   - For depth d = 1 to max_depth:
+     - Choose t_{2d+1} from candidate list (5-10 nearest neighbors of t_{2d})
+     - Add edge (t_{2d}, t_{2d+1}), breaking edge (t_{2d+1}, t_{2d+2})
+     - If closing the tour now gives positive gain, accept and restart
+     - Otherwise continue deepening
+   - Backtrack if no improvement found
+3. Key insight: Don't stop at 2-opt or 3-opt - variable depth finds better moves
+
+CANDIDATE LISTS (critical for speed):
+- For each city, precompute 5-10 nearest neighbors
+- Only consider these when searching for improving moves
+- Reduces O(n²) search to O(n × k) where k ≈ 10
+```
+
+## Example: 3-opt Move Implementation
+
+```python
+def three_opt_move(tour, dist, i, j, k):
+    '''Try reconnecting tour segments [0:i], [i:j], [j:k], [k:n] in best way'''
+    n = len(tour)
+    A, B, C, D = tour[i-1], tour[i], tour[j-1], tour[j]
+    E, F = tour[k-1], tour[k % n]
+
+    d0 = dist[A,B] + dist[C,D] + dist[E,F]  # current
+
+    # Try all 4 reconnection patterns, return best improvement
+    options = [
+        dist[A,C] + dist[B,E] + dist[D,F],  # reverse [i:j]
+        dist[A,D] + dist[E,B] + dist[C,F],  # reverse [j:k]
+        dist[A,D] + dist[E,C] + dist[B,F],  # reverse both
+        dist[A,E] + dist[D,B] + dist[C,F],  # reconnect differently
+    ]
+    best_gain = d0 - min(options)
+    return best_gain, options.index(min(options))
+```
+
+## Key Directions to Explore
+
+1. **Variable-depth search**: Don't stop at 2-opt. Implement 3-opt, 4-opt, or full LK moves
+2. **Candidate lists**: Limit neighbor search to k-nearest (massive speedup)
+3. **Don't-look bits**: Skip nodes that haven't changed since last improvement
+4. **Better construction**: Greedy edge insertion, Christofides-inspired approaches
+5. **Multi-start + best-of**: Try multiple starting tours, keep the best
+
+## Performance Targets
+
+Current baseline achieves 7-25% gap from optimal. Target: <5% gap.
+- n=20: aim for <5% gap (currently 7.2%)
+- n=50: aim for <5% gap (currently 9.4%)
+- n=100: aim for <5% gap (currently 12.6%)
+
+## Constraints
+
+- Interface: solve_tsp(coords, time_limit_ms) -> (tour, length)
+- Must complete within time_limit_ms
+- Tour must visit all cities exactly once
 - Minimize total tour length (lower is better)
 
-Be creative and try different algorithmic improvements!"""
+## What NOT to Do (common failures)
+
+- Don't use pure random search or simulated annealing alone (too slow to converge)
+- Don't forget to validate tour after segment manipulations (off-by-one errors)
+- Don't ignore the time limit - check it in inner loops
+- Don't use O(n³) algorithms without candidate list pruning for n>50"""
 
 
 def main():
